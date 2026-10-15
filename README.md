@@ -98,3 +98,32 @@ The integration test creates a unique record, waits for workflow completion, che
 This demo has no authentication. Avoid storing private data in a public deployment.
 
 References: [multi-Worker local development](https://developers.cloudflare.com/workers/local-development/multi-workers/), [Workflow bindings](https://developers.cloudflare.com/workflows/build/workers-api/), [Nitro Cloudflare preset](https://nitro.build/deploy/providers/cloudflare).
+
+## Session jobs
+
+The execution page submits multipart POST `/api/sessions/:uuid/jobs`. The server
+creates the job UUID. Send an `inputs` part containing JSON scalar values keyed
+by workflow input ID, plus file parts named after their workflow input IDs.
+Each POST creates a new job; requests are not automatically retried.
+
+Jobs preserve the workflow snapshot and input values from submission time.
+Files are stored privately in R2; job inputs contain their object keys, original
+filenames, content types, and sizes. Editing a session workflow does not update
+existing jobs. GET `/api/sessions/:uuid/jobs` lists newest jobs first; GET
+`/api/sessions/:uuid/jobs/:jobId` returns the snapshot, inputs, and step progress.
+Both endpoints are scoped to the session UUID.
+
+`SessionWorkflow` prepares each job using durable steps and initializes pending
+progress rows. A prepared job is `ready`; extract, reason, and API execution are
+not implemented yet. The execution page shows history, saved details, and polls
+active jobs every two seconds. A dispatch failure preserves the failed job and
+uploads and returns its ID in the error's `data.jobId` field. Submitting again
+creates another job.
+
+Local R2 uses the existing shared Wrangler persistence directory. Before remote
+deployment, create `demo-job-uploads-staging` and
+`demo-job-uploads-production` with `pnpm exec wrangler r2 bucket create <name>`.
+Both Workers must use the same bucket within each environment. If you choose
+other bucket names, update both Wrangler configurations. Apply the new D1
+migration before deploying jobs and then web using the existing release flow.
+No file download or retry endpoint is included.

@@ -20,6 +20,12 @@
       "name": "record-workflow",
       "class_name": "RecordWorkflow",
       "script_name": "demo-jobs"
+    },
+    {
+      "binding": "SESSION_WORKFLOW",
+      "name": "session-workflow",
+      "class_name": "SessionWorkflow",
+      "script_name": "demo-jobs"
     }
   ],
   "env": {
@@ -39,6 +45,12 @@
           "name": "record-workflow-staging",
           "class_name": "RecordWorkflow",
           "script_name": "demo-jobs-staging"
+        },
+        {
+          "binding": "SESSION_WORKFLOW",
+          "name": "session-workflow-staging",
+          "class_name": "SessionWorkflow",
+          "script_name": "demo-jobs-staging"
         }
       ],
       "ai": {
@@ -48,7 +60,13 @@
       "vars": {
         "AGENT_ONE_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct",
         "AGENT_TWO_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct"
-      }
+      },
+      "r2_buckets": [
+        {
+          "binding": "JOB_UPLOADS",
+          "bucket_name": "demo-job-uploads-staging"
+        }
+      ]
     },
     "production": {
       "name": "demo-web-production",
@@ -66,6 +84,12 @@
           "name": "record-workflow-production",
           "class_name": "RecordWorkflow",
           "script_name": "demo-jobs-production"
+        },
+        {
+          "binding": "SESSION_WORKFLOW",
+          "name": "session-workflow-production",
+          "class_name": "SessionWorkflow",
+          "script_name": "demo-jobs-production"
         }
       ],
       "ai": {
@@ -75,7 +99,13 @@
       "vars": {
         "AGENT_ONE_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct",
         "AGENT_TWO_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct"
-      }
+      },
+      "r2_buckets": [
+        {
+          "binding": "JOB_UPLOADS",
+          "bucket_name": "demo-job-uploads-production"
+        }
+      ]
     }
   },
   "assets": {
@@ -89,5 +119,11 @@
   "vars": {
     "AGENT_ONE_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct",
     "AGENT_TWO_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct"
-  }
+  },
+  "r2_buckets": [
+    {
+      "binding": "JOB_UPLOADS",
+      "bucket_name": "demo-job-uploads-local"
+    }
+  ]
 }

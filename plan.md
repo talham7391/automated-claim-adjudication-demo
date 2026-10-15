@@ -14,8 +14,8 @@
 
 ## Claim submission page
 
-- [ ] Upload one prescription receipt image.
-- [ ] Start a run using the saved workflow.
+- [x] Upload one prescription receipt image.
+- [x] Start a run using the saved workflow.
 
 ## Run details page
 
