@@ -3,7 +3,7 @@
 ## Start / session page
 
 - [x] Create a persistent anonymous session without login.
-- [ ] Restore the session's saved state when the visitor returns.
+- [x] Restore the session's saved state when the visitor returns.
 
 ## Workflow builder page
 
