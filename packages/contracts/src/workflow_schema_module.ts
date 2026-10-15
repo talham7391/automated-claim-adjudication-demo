@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
-export type UUID = string;
-export type Fields<T> = Record<UUID, T>;
+export type Fields<T> = Record<string, T>;
 
 export interface NamedField {
     name: string;
@@ -16,9 +15,9 @@ export type FieldDefinition = NamedField & (
 );
 
 export interface FieldReference extends NamedField {
-    // UUID of a workflow input or an earlier step's output.
+    // ID of a workflow input or an earlier step's output.
     // Workflow outputs reference step outputs.
-    referenceId: UUID;
+    referenceId: string;
 }
 
 export type ApiOutput = FieldDefinition & {
@@ -34,12 +33,11 @@ export interface AiConfig {
 export interface ApiConfig {
     integration: string;
     operation: string;
-    operationVersion: number;
     connectionId: string;
 }
 
 export interface StepBase {
-    id: UUID;
+    id: string;
     name: string;
     description: string;
     inputs: Fields<FieldReference>;
@@ -73,7 +71,7 @@ export interface Workflow {
     outputs: Fields<FieldReference>;
 }
 
-const uuid = z.string().uuid();
+const id = z.string();
 const namedField = {
     name: z.string().trim().min(1),
     description: z.string()
@@ -86,7 +84,7 @@ const fieldDefinition: z.ZodType<FieldDefinition> = z.discriminatedUnion('type',
     z.object({ ...namedField, type: z.literal('file') })
 ]);
 
-const fieldReference = z.object({ ...namedField, referenceId: uuid });
+const fieldReference = z.object({ ...namedField, referenceId: id });
 const apiOutput = z.intersection(fieldDefinition, z.object({
     source: z.string().regex(/^[^.\s/]+(?:\.[^.\s/]+)*$/, 'Use a dot-separated JSON attribute path')
 }));
@@ -95,23 +93,22 @@ const aiConfig = z.object({
     instructions: z.string().trim().min(1)
 });
 const stepBase = {
-    id: uuid,
+    id: id,
     ...namedField,
-    inputs: z.record(uuid, fieldReference)
+    inputs: z.record(id, fieldReference)
 };
 const stepDefinition = z.discriminatedUnion('type', [
-    z.object({ ...stepBase, type: z.literal('extract'), config: aiConfig, outputs: z.record(uuid, fieldDefinition) }),
-    z.object({ ...stepBase, type: z.literal('reason'), config: aiConfig, outputs: z.record(uuid, fieldDefinition) }),
+    z.object({ ...stepBase, type: z.literal('extract'), config: aiConfig, outputs: z.record(id, fieldDefinition) }),
+    z.object({ ...stepBase, type: z.literal('reason'), config: aiConfig, outputs: z.record(id, fieldDefinition) }),
     z.object({
         ...stepBase,
         type: z.literal('api'),
         config: z.object({
             integration: z.string().trim().min(1),
             operation: z.string().trim().min(1),
-            operationVersion: z.number().int().positive(),
             connectionId: z.string().trim().min(1)
         }),
-        outputs: z.record(uuid, apiOutput)
+        outputs: z.record(id, apiOutput)
     })
 ]);
 
@@ -119,9 +116,9 @@ const workflowDefinition = z.object({
     _schemaVersion: z.literal('0.0.1'),
     revision: z.number().int().positive(),
     ...namedField,
-    inputs: z.record(uuid, fieldDefinition),
+    inputs: z.record(id, fieldDefinition),
     steps: z.array(stepDefinition).nonempty(),
-    outputs: z.record(uuid, fieldReference)
+    outputs: z.record(id, fieldReference)
 }).superRefine((workflow, context) => {
     const ids = new Set<string>();
     const availableInputs = new Set<string>();
@@ -129,7 +126,7 @@ const workflowDefinition = z.object({
 
     const registerId = (id: string, path: (string | number)[]) => {
         if (ids.has(id)) {
-            context.addIssue({ code: 'custom', path, message: 'UUID must be unique throughout the workflow' });
+            context.addIssue({ code: 'custom', path, message: 'ID must be unique throughout the workflow' });
         }
         ids.add(id);
     };

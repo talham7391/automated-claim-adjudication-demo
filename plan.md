@@ -8,9 +8,9 @@
 ## Workflow builder page
 
 - [x] Accept typed policy text and desired adjudication steps.
-- [ ] Convert instructions into a saved, reusable workflow schema.
+- [x] Convert instructions into a saved, reusable workflow schema.
 - [ ] Visualize the generated workflow with plain-language step descriptions.
-- [ ] Support workflow revisions through text.
+- [x] Support workflow revisions through text.
 
 ## Claim submission page
 

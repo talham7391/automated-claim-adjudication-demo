@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Button from 'primevue/button';
+import Textarea from 'primevue/textarea';
 
 definePageMeta({ key: route => route.path });
 
@@ -7,6 +8,9 @@ const route = useRoute();
 const testPending = ref(false);
 const testResult = ref<string | null>(null);
 const testError = ref('');
+const modificationText = ref('');
+const modifyPending = ref(false);
+const modifyError = ref('');
 const { data: session, error } = await useFetch(() => `/api/sessions/${route.params.uuid}`);
 
 if (error.value) {
@@ -15,6 +19,27 @@ if (error.value) {
         statusMessage: error.value.statusCode === 404 ? 'Session not found' : 'Unable to load session',
         fatal: true
     });
+}
+
+async function modifyWorkflow() {
+    if (modifyPending.value) return;
+
+    modifyPending.value = true;
+    modifyError.value = '';
+    try {
+        const result = await $fetch('/api/workflows/modify', {
+            method: 'POST',
+            body: {
+                text: modificationText.value,
+                session: { uuid: session.value!.uuid }
+            }
+        });
+        session.value!.workflow = result.workflow;
+    } catch {
+        modifyError.value = 'Unable to modify workflow. Please try again.';
+    } finally {
+        modifyPending.value = false;
+    }
 }
 
 async function testAgentOne() {
@@ -41,5 +66,12 @@ async function testAgentOne() {
         <Button label="Test" :loading="testPending" :disabled="testPending" @click="testAgentOne" />
         <p v-if="testError" role="alert">{{ testError }}</p>
         <pre v-if="testResult !== null" class="whitespace-pre-wrap break-words" aria-live="polite">{{ testResult }}</pre>
+        <form class="flex flex-col gap-3 mt-6" @submit.prevent="modifyWorkflow">
+            <label for="workflow-modifications">Describe your workflow or requested changes</label>
+            <Textarea id="workflow-modifications" v-model="modificationText" :rows="5" auto-resize />
+            <Button type="submit" label="Modify workflow" :loading="modifyPending" :disabled="modifyPending" />
+            <p v-if="modifyError" role="alert">{{ modifyError }}</p>
+        </form>
+        <pre v-if="session?.workflow != null" class="whitespace-pre-wrap break-words mt-4" aria-live="polite">{{ session.workflow }}</pre>
     </BasePage>
 </template>

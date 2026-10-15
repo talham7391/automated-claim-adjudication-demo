@@ -51,7 +51,7 @@ function runInference(env: InferenceEnv, model: string, input: InferenceInput) {
             : input.prompt
     });
 
-    return env.AI.run(model, { messages, stream: false });
+    return env.AI.run(model, { messages, stream: false, max_tokens: 1024 });
 }
 
 export function runAgentOne(env: InferenceEnv, input: InferenceInput) {

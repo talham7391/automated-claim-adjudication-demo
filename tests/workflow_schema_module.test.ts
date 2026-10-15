@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateWorkflowSchema, type Workflow } from '../packages/contracts/src/workflow_schema_module';
 
-const id = (value: number) => `00000000-0000-4000-8000-${String(value).padStart(12, '0')}`;
+const id = (value: number) => `id-${value}`;
 const field = { name: 'Value', description: '', type: 'string' as const };
 const reference = (referenceId: string) => ({ name: 'Value', description: '', referenceId });
 
@@ -28,7 +28,7 @@ function validWorkflow(): Workflow {
             },
             {
                 id: id(11), name: 'Submit', description: '', type: 'api',
-                config: { integration: 'claims', operation: 'submit', operationVersion: 1, connectionId: 'claims' },
+                config: { integration: 'claims', operation: 'submit', connectionId: 'claims' },
                 inputs: { [id(12)]: reference(id(10)) },
                 outputs: { [id(13)]: { ...field, source: 'result.claim.id' } }
             }
@@ -37,7 +37,7 @@ function validWorkflow(): Workflow {
     };
 }
 
-test('accepts a valid workflow with every step type and valid references', () => {
+test('accepts a valid workflow with string IDs, every step type, and valid references', () => {
     const workflow = validWorkflow();
     const result = validateWorkflowSchema(workflow);
 
@@ -78,7 +78,7 @@ test('rejects references to missing, current, later, or disallowed fields', () =
     }
 });
 
-test('rejects duplicate UUIDs across steps, inputs, and outputs', () => {
+test('rejects duplicate IDs across steps, inputs, and outputs', () => {
     const cases: { name: string; mutate: (workflow: Workflow) => void; path: (string | number)[] }[] = [
         {
             name: 'duplicate step IDs',
@@ -105,7 +105,7 @@ test('rejects duplicate UUIDs across steps, inputs, and outputs', () => {
         assert.equal(result.success, false, scenario.name);
         if (!result.success) {
             assert.deepEqual(result.issues.map(issue => ({ code: issue.code, path: issue.path, message: issue.message })), [{
-                code: 'custom', path: scenario.path, message: 'UUID must be unique throughout the workflow'
+                code: 'custom', path: scenario.path, message: 'ID must be unique throughout the workflow'
             }], scenario.name);
         }
     }

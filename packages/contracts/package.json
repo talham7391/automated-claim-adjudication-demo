@@ -4,7 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./workflow": "./src/workflow.ts"
+    "./workflow_schema_module": "./src/workflow_schema_module.ts"
   },
   "dependencies": {
     "zod": "^4.0.0"

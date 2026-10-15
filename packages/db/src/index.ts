@@ -1,5 +1,6 @@
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, sql } from 'drizzle-orm';
+import type { Workflow } from '@demo/contracts';
 import * as schema from './schema';
 
 export * from './schema';
@@ -12,7 +13,7 @@ type Db = ReturnType<typeof createDb>;
 
 export async function findSession(db: Db, uuid: string) {
     const [session] = await db
-        .select({ uuid: schema.sessions.uuid })
+        .select({ uuid: schema.sessions.uuid, workflow: schema.sessions.workflow })
         .from(schema.sessions)
         .where(eq(schema.sessions.uuid, uuid));
 
@@ -22,7 +23,14 @@ export async function findSession(db: Db, uuid: string) {
 export async function insertSession(db: Db, uuid: string) {
     await db.insert(schema.sessions).values({ uuid });
 
-    return { uuid };
+    return { uuid, workflow: null };
+}
+
+export async function saveSessionWorkflow(db: Db, uuid: string, workflow: Workflow) {
+    await db
+        .update(schema.sessions)
+        .set({ workflow })
+        .where(eq(schema.sessions.uuid, uuid));
 }
 
 export async function findRecord(db: Db, id: string) {

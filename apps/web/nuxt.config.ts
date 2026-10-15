@@ -1,6 +1,7 @@
 import Aura from '@primeuix/themes/aura';
 import { definePreset } from '@primeuix/themes';
 import tailwindcss from '@tailwindcss/vite';
+import { readFileSync } from 'node:fs';
 
 const appPreset = definePreset(Aura, {
     semantic: {
@@ -37,6 +38,9 @@ export default defineNuxtConfig({
         }
     },
     nitro: {
+        virtual: {
+            'virtual:workflow-instructions': `export default ${JSON.stringify(readFileSync(new URL('../../agents/how_to_understand_workflows.md', import.meta.url), 'utf8'))};`
+        },
         preset: 'cloudflare_module',
         cloudflare: { deployConfig: false, nodeCompat: true }
     }
