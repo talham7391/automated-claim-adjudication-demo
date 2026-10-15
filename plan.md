@@ -22,12 +22,12 @@
 - [ ] Show live execution status and progress for each step.
 - [ ] Show extracted receipt data and review findings.
 - [ ] Show the final approval, rejection, or needs-review outcome with an explanation.
-- [ ] Allow historic runs to be opened with their saved results; manual resolution is out of scope.
+- [x] Allow historic runs to be opened with their saved results; manual resolution is out of scope.
 
 ## Run history page
 
-- [ ] List the session's past runs and their status or outcome.
-- [ ] Link each run to its details page.
+- [x] List the session's past runs and their status or outcome.
+- [x] Link each run to its details page.
 
 ## Shared backend and infrastructure
 
@@ -45,4 +45,5 @@
 - [ ] Security review
 - [ ] Favicon/manifest
 - [ ] Production deploy
-- [ ] Pretty README.md file
+- [ ] Pretty README.md file (with a future sections)
+- [ ] Audit the DB schema

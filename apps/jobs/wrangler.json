@@ -16,11 +16,6 @@
   ],
   "workflows": [
     {
-      "binding": "RECORD_WORKFLOW",
-      "name": "record-workflow",
-      "class_name": "RecordWorkflow"
-    },
-    {
       "binding": "SESSION_WORKFLOW",
       "name": "session-workflow",
       "class_name": "SessionWorkflow"
@@ -38,11 +33,6 @@
         }
       ],
       "workflows": [
-        {
-          "binding": "RECORD_WORKFLOW",
-          "name": "record-workflow-staging",
-          "class_name": "RecordWorkflow"
-        },
         {
           "binding": "SESSION_WORKFLOW",
           "name": "session-workflow-staging",
@@ -75,11 +65,6 @@
         }
       ],
       "workflows": [
-        {
-          "binding": "RECORD_WORKFLOW",
-          "name": "record-workflow-production",
-          "class_name": "RecordWorkflow"
-        },
         {
           "binding": "SESSION_WORKFLOW",
           "name": "session-workflow-production",

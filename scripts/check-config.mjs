@@ -15,7 +15,7 @@ export function checkConfig(environment = 'local', remote = false) {
   return (env === 'local' ? c : c.env[env]).d1_databases[0].database_id;
  });
  if (new Set(otherIds).size !== 3) throw new Error('Environments must have separate databases');
- const [producer, consumer] = configs.map(c => c.workflows.find(w => w.binding === 'RECORD_WORKFLOW'));
+ const [producer, consumer] = configs.map(c => c.workflows.find(w => w.binding === 'SESSION_WORKFLOW'));
  if (producer.script_name !== jobs.name || producer.name !== consumer.name || producer.class_name !== consumer.class_name) throw new Error('Workflow binding mismatch');
  for (const [index, binding] of db.entries()) {
   if (resolve(`apps/${index === 0 ? 'web' : 'jobs'}`, binding.migrations_dir) !== resolve('packages/db/migrations')) throw new Error('Migration directory mismatch');

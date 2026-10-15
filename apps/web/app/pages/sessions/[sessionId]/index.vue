@@ -138,7 +138,7 @@ function connectionPath(connection: Connection) {
 const modificationText = ref('');
 const modifyPending = ref(false);
 const modifyError = ref('');
-const { data: session, error } = await useFetch(() => `/api/sessions/${route.params.uuid}`);
+const { data: session, error } = await useFetch(() => `/api/sessions/${route.params.sessionId}`);
 
 if (error.value) {
     throw createError({

@@ -1,17 +1,7 @@
 import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from 'cloudflare:workers';
-import { createDb, findRecord, completeRecord, findJob, markJobPreparing, initializeJobProgress, markJobReady, failJob } from '@demo/db';
-import { workflowPayload, type SessionWorkflowPayload, type RecordWorkflowPayload } from '@demo/contracts';
-export class RecordWorkflow extends WorkflowEntrypoint<Env, RecordWorkflowPayload> {
- async run(event: WorkflowEvent<RecordWorkflowPayload>, step: WorkflowStep) {
-  const { recordId } = workflowPayload.parse(event.payload);
-  await step.do('read record', async () => {
-   const record = await findRecord(createDb(this.env.DB), recordId);
-   if (!record) throw new Error('Record not found');
-   return record;
-  });
-  return step.do('complete record', () => completeRecord(createDb(this.env.DB), recordId));
- }
-}
+import { createDb, findJob, markJobPreparing, initializeJobProgress, markJobReady, failJob } from '@demo/db';
+import type { SessionWorkflowPayload } from '@demo/contracts';
+
 export class SessionWorkflow extends WorkflowEntrypoint<Env, SessionWorkflowPayload> {
     async run(event: WorkflowEvent<SessionWorkflowPayload>, step: WorkflowStep) {
         const { jobId } = event.payload;

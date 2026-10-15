@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const route = useRoute();
-const sessionPath = computed(() => route.params.uuid ? `/sessions/${route.params.uuid}` : null);
+const sessionPath = computed(() => route.params.sessionId ? `/sessions/${route.params.sessionId}` : null);
 
 useHead({
     link: [
@@ -19,6 +19,7 @@ useHead({
         <nav v-if="sessionPath" class="session-navigation" aria-label="Session workflow">
             <NuxtLink :to="sessionPath" active-class="" exact-active-class="current-page">Edit workflow</NuxtLink>
             <NuxtLink :to="`${sessionPath}/execute`" active-class="" exact-active-class="current-page">Execute workflow</NuxtLink>
+            <NuxtLink :to="`${sessionPath}/executions`" active-class="current-page">Executions</NuxtLink>
         </nav>
         <slot />
     </main>

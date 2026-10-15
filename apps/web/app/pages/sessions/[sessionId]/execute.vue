@@ -5,7 +5,7 @@ import type { JobDetail, JobSummary } from '@demo/db';
 definePageMeta({ key: route => route.path });
 
 const route = useRoute();
-const { data: session, error } = await useFetch(() => `/api/sessions/${route.params.uuid}`);
+const { data: session, error } = await useFetch(() => `/api/sessions/${route.params.sessionId}`);
 
 if (error.value) {
     throw createError({
@@ -31,7 +31,7 @@ function selectFile(id: string, event: Event) {
     inputValues.value[id] = (event.target as HTMLInputElement).files?.[0] ?? null;
 }
 
-const jobsUrl = `/api/sessions/${route.params.uuid}/jobs`;
+const jobsUrl = `/api/sessions/${route.params.sessionId}/jobs`;
 const { data: jobs, refresh: refreshJobs, error: historyError } = await useFetch<JobSummary[]>(jobsUrl);
 const selectedJobId = ref<string | null>(null);
 const selectedJob = ref<JobDetail | null>(null);
@@ -142,7 +142,7 @@ onBeforeUnmount(() => {
         </section>
         <p v-else class="mt-6">
             No workflow saved yet.
-            <NuxtLink :to="`/sessions/${route.params.uuid}`">Edit workflow</NuxtLink> to generate one.
+            <NuxtLink :to="`/sessions/${route.params.sessionId}`">Edit workflow</NuxtLink> to generate one.
         </p>
         <section class="execution-panel" aria-labelledby="job-history-title">
             <h2 id="job-history-title">Job history</h2>

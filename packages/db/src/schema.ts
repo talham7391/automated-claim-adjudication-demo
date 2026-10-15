@@ -5,7 +5,6 @@ export const sessions = sqliteTable('sessions', {
     uuid: text('uuid').notNull().unique(),
     workflow: text('workflow', { mode: 'json' }).$type<Workflow>()
 });
-export const records = sqliteTable('records', { id: text('id').primaryKey(), title: text('title').notNull(), status: text('status', { enum: ['pending', 'completed'] }).notNull().default('pending'), effectCount: integer('effect_count').notNull().default(0) });
 
 export const jobs = sqliteTable('jobs', {
     id: text('id').primaryKey(),

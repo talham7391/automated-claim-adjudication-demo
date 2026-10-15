@@ -12,13 +12,11 @@ pnpm config:check
 pnpm typecheck
 pnpm test
 pnpm dev
-# In another terminal:
-pnpm test:integration
 ```
 
 `pnpm dev` builds Nuxt, applies migrations, then starts both Workers in one Wrangler process. Open http://localhost:8787. Both Workers and the migration command use the root `.wrangler/shared` persistence directory. This is a production-build local preview; rebuild/restart after edits. Do not run independent Wrangler processes with different persistence directories.
 
-POST `/api/records` with `{ "id": "<UUID>", "title": "Example" }` creates a pending record and starts a workflow. GET `/api/records/:id` reads it. The workflow reads it, then atomically transitions pending to completed and increments `effectCount`. Repeating that query has no additional effect. Retrying POST with the same ID/title reuses the workflow instance; a different title for the same ID is rejected. If workflow creation fails after insertion, retry the same POST. The SSR home page lists records; use Refresh status after creating one.
+Create a session from the home page, describe its workflow, then open Execute workflow to submit inputs and prepare a job. `SessionWorkflow` initializes step progress and marks the job ready; execution of individual steps is not implemented yet.
 
 ## Workers AI inference
 
@@ -59,9 +57,9 @@ const result = await step.do('analyze image', () => runAgentTwo(this.env, {
 }));
 ```
 
-These examples are not installed routes or changes to the existing record
-Workflow. The helpers are server-only scaffolding; uploads, image storage, PDF
-processing, and business prompts are left for later.
+These examples illustrate server-only AI helpers. Session jobs already support
+file uploads and storage; document processing and individual workflow step
+execution are not implemented yet.
 
 Workers AI inference runs remotely even during local development. Authenticate
 with `pnpm exec wrangler login` or the account/token environment variables described
@@ -76,24 +74,22 @@ unchanged. No new automated tests or runtime validations are included.
 
 ## Environments and deployment
 
-The checked-in IDs are **local placeholders**, not provisioned Cloudflare databases. Local emulation works with these IDs. Remote commands reject placeholders.
+Local and staging use placeholder database IDs; production has a configured ID. Remote commands reject placeholder IDs.
 
 1. Authenticate using `pnpm exec wrangler login` (or supply `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`).
-2. Create databases with `pnpm exec wrangler d1 create demo-staging` and `pnpm exec wrangler d1 create demo-production`.
+2. Provision any missing databases with `pnpm exec wrangler d1 create <name>`; reuse existing databases where configured.
 3. Set each real ID in **both** `apps/web/wrangler.json` and `apps/jobs/wrangler.json` under the corresponding environment. Staging and production must use distinct IDs.
 4. Run `pnpm config:check`, `pnpm typecheck`, `pnpm test`, and `pnpm build`.
 5. Run `pnpm deploy:staging`. This builds web, checks bindings, applies migrations once, deploys jobs, then deploys web. Production uses `pnpm deploy:production` with the same ordering.
-6. Run `TEST_BASE_URL=https://<staging-web-worker> pnpm test:integration` to verify deployed cross-Worker access and SSR.
+6. Open the deployed web Worker, create a session workflow, and submit a job. Confirm it reaches `ready` and displays pending step progress.
 
 Standalone migration commands are `pnpm db:migrate:local`, `pnpm db:migrate:staging`, and `pnpm db:migrate:production`. Use backward-compatible schema changes so the previously deployed web Worker continues to work while jobs deploys.
 
-`pnpm bindings` generates each Worker's binding types from Wrangler configuration; type checking consumes those types. `pnpm db:generate` generates future SQL migrations from the Drizzle schema. The initial SQL migration and its snapshot baseline are checked in. Review generated SQL before applying it.
+`pnpm bindings` generates each Worker's binding types from Wrangler configuration; type checking consumes those types. `pnpm db:generate` generates future SQL migrations from the Drizzle schema. The initial SQL migration and its snapshot baseline are checked in. Review generated SQL before applying it. The record cleanup migration drops the obsolete `records` table and deletes its data; historical migrations are retained.
 
 ## Verification status
 
-Configuration checks pass for all three environments. Remote placeholder rejection is tested. Full dependency installation, builds, generated binding types, shared-query tests, Wrangler emulation, and staging integration require dependency/network access and (for staging) an authenticated account and real database IDs. They have not been verified in the authoring sandbox because npm registry DNS resolution was blocked.
-
-The integration test creates a unique record, waits for workflow completion, checks `effectCount = 1`, retries POST, checks there is one record, and verifies SSR output. The shared-query test executes the actual Drizzle query functions against a SQLite-backed D1 adapter and repeats the effect operation. Neither test claims to simulate a Cloudflare crash/retry; staging confirms the deployed cross-Worker binding.
+Run `pnpm config:check`, `pnpm typecheck`, `pnpm test`, and `pnpm build` for local verification. The existing automated tests cover configuration consistency and workflow schemas. Live session job preparation requires both Workers, D1, and R2; remote verification requires an authenticated account and provisioned resources.
 
 This demo has no authentication. Avoid storing private data in a public deployment.
 
