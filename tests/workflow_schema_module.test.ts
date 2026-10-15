@@ -4,31 +4,29 @@ import { validateWorkflowSchema, type Workflow } from '../packages/contracts/src
 
 const id = (value: number) => `id-${value}`;
 const field = { name: 'Value', description: '', type: 'string' as const };
-const reference = (referenceId: string) => ({ name: 'Value', description: '', referenceId });
+const reference = (referenceId: string) => ({ referenceId });
 
 function validWorkflow(): Workflow {
     return {
         _schemaVersion: '0.0.1',
-        revision: 1,
-        name: 'Claim review',
         description: '',
         inputs: { [id(1)]: { ...field, type: 'file' } },
         steps: [
             {
                 id: id(2), name: 'Extract', description: '', type: 'extract',
-                config: { modelProfile: 'default', instructions: 'Extract claim details' },
+                config: { instructions: 'Extract claim details' },
                 inputs: { [id(3)]: reference(id(1)) },
                 outputs: { [id(4)]: field }
             },
             {
                 id: id(8), name: 'Reason', description: '', type: 'reason',
-                config: { modelProfile: 'default', instructions: 'Review claim details' },
+                config: { instructions: 'Review claim details' },
                 inputs: { [id(9)]: reference(id(4)) },
                 outputs: { [id(10)]: { ...field, type: 'boolean' } }
             },
             {
                 id: id(11), name: 'Submit', description: '', type: 'api',
-                config: { integration: 'claims', operation: 'submit', connectionId: 'claims' },
+                config: { returnValue: '{"result":{"claim":{"id":"claim-1"}}}' },
                 inputs: { [id(12)]: reference(id(10)) },
                 outputs: { [id(13)]: { ...field, source: 'result.claim.id' } }
             }
@@ -44,6 +42,68 @@ test('accepts a valid workflow with string IDs, every step type, and valid refer
     assert.equal(result.success, true);
     if (result.success) {
         assert.deepEqual(result.data, workflow);
+    }
+});
+
+test('requires instructions for extract and reason', () => {
+    for (const [stepIndex, property] of [[0, 'instructions'], [1, 'instructions']] as const) {
+        for (const value of [undefined, '', '   ']) {
+            const workflow = validWorkflow();
+            Object.assign(workflow.steps[stepIndex].config, { [property]: value });
+            const result = validateWorkflowSchema(workflow);
+
+            assert.equal(result.success, false);
+            if (!result.success) {
+                assert.deepEqual(result.issues.map(issue => issue.path), [['steps', stepIndex, 'config', property]]);
+            }
+        }
+    }
+});
+
+test('requires a string mock return value', () => {
+    for (const returnValue of [undefined, null, 42, true, {}, []]) {
+        const workflow = validWorkflow();
+        Object.assign(workflow.steps[2].config, { returnValue });
+        const result = validateWorkflowSchema(workflow);
+
+        assert.equal(result.success, false);
+        if (!result.success) {
+            assert.deepEqual(result.issues.map(issue => issue.path), [['steps', 2, 'config', 'returnValue']]);
+        }
+    }
+});
+
+test('preserves empty, whitespace, JSON, and plain text mock responses exactly', () => {
+    for (const returnValue of ['', '   ', '  {"result":{"claim":{"id":"claim-1"}}}\n', 'mock response']) {
+        const workflow = validWorkflow();
+        Object.assign(workflow.steps[2].config, { returnValue });
+        const result = validateWorkflowSchema(workflow);
+
+        assert.equal(result.success, true);
+        if (result.success) {
+            assert.deepEqual(result.data, workflow);
+        }
+    }
+});
+
+test('strips removed metadata and config properties from legacy objects', () => {
+    const expected = validWorkflow();
+    const workflow = validWorkflow();
+    Object.assign(workflow, { revision: 1, name: 'Claim review' });
+    for (const step of workflow.steps) {
+        for (const input of Object.values(step.inputs)) {
+            Object.assign(input, { name: 'Value', description: 'Legacy reference' });
+        }
+    }
+    Object.assign(workflow.outputs[id(14)], { name: 'Value', description: 'Legacy reference' });
+    Object.assign(workflow.steps[0].config, { modelProfile: 'legacy-extract' });
+    Object.assign(workflow.steps[1].config, { modelProfile: 'legacy-reason' });
+    Object.assign(workflow.steps[2].config, { integration: 'claims', operation: 'submit', connectionId: 'claims' });
+    const result = validateWorkflowSchema(workflow);
+
+    assert.equal(result.success, true);
+    if (result.success) {
+        assert.deepEqual(result.data, expected);
     }
 });
 

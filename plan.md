@@ -9,7 +9,7 @@
 
 - [x] Accept typed policy text and desired adjudication steps.
 - [x] Convert instructions into a saved, reusable workflow schema.
-- [ ] Visualize the generated workflow with plain-language step descriptions.
+- [x] Visualize the generated workflow with plain-language step descriptions.
 - [x] Support workflow revisions through text.
 
 ## Claim submission page

@@ -14,7 +14,7 @@ export type FieldDefinition = NamedField & (
     | { type: 'file' }
 );
 
-export interface FieldReference extends NamedField {
+export interface FieldReference {
     // ID of a workflow input or an earlier step's output.
     // Workflow outputs reference step outputs.
     referenceId: string;
@@ -25,15 +25,16 @@ export type ApiOutput = FieldDefinition & {
     source: string;
 };
 
+export interface ExtractConfig {
+    instructions: string;
+}
+
 export interface AiConfig {
-    modelProfile: string;
     instructions: string;
 }
 
 export interface ApiConfig {
-    integration: string;
-    operation: string;
-    connectionId: string;
+    returnValue: string;
 }
 
 export interface StepBase {
@@ -46,7 +47,7 @@ export interface StepBase {
 export type Step = StepBase & (
     | {
         type: 'extract';
-        config: AiConfig;
+        config: ExtractConfig;
         outputs: Fields<FieldDefinition>;
     }
     | {
@@ -63,8 +64,6 @@ export type Step = StepBase & (
 
 export interface Workflow {
     _schemaVersion: '0.0.1';
-    revision: number;
-    name: string;
     description: string;
     inputs: Fields<FieldDefinition>;
     steps: Step[];
@@ -84,12 +83,14 @@ const fieldDefinition: z.ZodType<FieldDefinition> = z.discriminatedUnion('type',
     z.object({ ...namedField, type: z.literal('file') })
 ]);
 
-const fieldReference = z.object({ ...namedField, referenceId: id });
+const fieldReference = z.object({ referenceId: id });
 const apiOutput = z.intersection(fieldDefinition, z.object({
     source: z.string().regex(/^[^.\s/]+(?:\.[^.\s/]+)*$/, 'Use a dot-separated JSON attribute path')
 }));
+const extractConfig = z.object({
+    instructions: z.string().trim().min(1)
+});
 const aiConfig = z.object({
-    modelProfile: z.string().trim().min(1),
     instructions: z.string().trim().min(1)
 });
 const stepBase = {
@@ -98,15 +99,13 @@ const stepBase = {
     inputs: z.record(id, fieldReference)
 };
 const stepDefinition = z.discriminatedUnion('type', [
-    z.object({ ...stepBase, type: z.literal('extract'), config: aiConfig, outputs: z.record(id, fieldDefinition) }),
+    z.object({ ...stepBase, type: z.literal('extract'), config: extractConfig, outputs: z.record(id, fieldDefinition) }),
     z.object({ ...stepBase, type: z.literal('reason'), config: aiConfig, outputs: z.record(id, fieldDefinition) }),
     z.object({
         ...stepBase,
         type: z.literal('api'),
         config: z.object({
-            integration: z.string().trim().min(1),
-            operation: z.string().trim().min(1),
-            connectionId: z.string().trim().min(1)
+            returnValue: z.string()
         }),
         outputs: z.record(id, apiOutput)
     })
@@ -114,8 +113,7 @@ const stepDefinition = z.discriminatedUnion('type', [
 
 const workflowDefinition = z.object({
     _schemaVersion: z.literal('0.0.1'),
-    revision: z.number().int().positive(),
-    ...namedField,
+    description: z.string(),
     inputs: z.record(id, fieldDefinition),
     steps: z.array(stepDefinition).nonempty(),
     outputs: z.record(id, fieldReference)
