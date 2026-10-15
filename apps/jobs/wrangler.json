@@ -1,0 +1,62 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "demo-jobs",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "demo-local",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+      "migrations_dir": "../../packages/db/migrations"
+    }
+  ],
+  "workflows": [
+    {
+      "binding": "RECORD_WORKFLOW",
+      "name": "record-workflow",
+      "class_name": "RecordWorkflow"
+    }
+  ],
+  "env": {
+    "staging": {
+      "name": "demo-jobs-staging",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "demo-staging",
+          "database_id": "00000000-0000-0000-0000-000000000002",
+          "migrations_dir": "../../packages/db/migrations"
+        }
+      ],
+      "workflows": [
+        {
+          "binding": "RECORD_WORKFLOW",
+          "name": "record-workflow-staging",
+          "class_name": "RecordWorkflow"
+        }
+      ]
+    },
+    "production": {
+      "name": "demo-jobs-production",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "demo-production",
+          "database_id": "11276d60-7ba9-42af-abc2-00362d36bc8b",
+          "migrations_dir": "../../packages/db/migrations"
+        }
+      ],
+      "workflows": [
+        {
+          "binding": "RECORD_WORKFLOW",
+          "name": "record-workflow-production",
+          "class_name": "RecordWorkflow"
+        }
+      ]
+    }
+  }
+}

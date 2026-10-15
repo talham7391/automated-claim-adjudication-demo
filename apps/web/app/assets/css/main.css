@@ -1,0 +1,5 @@
+@import 'tailwindcss' theme(static);
+
+@theme {
+    --font-sans: 'Inter', sans-serif;
+}

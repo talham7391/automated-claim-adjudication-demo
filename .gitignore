@@ -1,0 +1,28 @@
+# Dependencies and package manager cache
+node_modules/
+.pnpm-store/
+
+# Build output and generated caches
+.nuxt/
+.output/
+dist/
+*.tsbuildinfo
+
+# Cloudflare local state and secrets
+.wrangler/
+.dev.vars*
+.env*
+!.env.example
+!.env.*.example
+!.dev.vars.example
+
+# Logs and coverage
+*.log
+coverage/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# VS Code workspace settings
+.vscode/

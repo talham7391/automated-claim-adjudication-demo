@@ -1,0 +1,36 @@
+{
+  "name": "nuxt-workflows",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "pnpm build:web && pnpm db:migrate:local && wrangler dev -c apps/web/wrangler.json -c apps/jobs/wrangler.json --persist-to .wrangler/shared",
+    "build:web": "pnpm --filter @demo/web build",
+    "build": "pnpm build:web && wrangler deploy -c apps/jobs/wrangler.json --dry-run --outdir ../../.output/jobs",
+    "bindings": "wrangler types -c apps/jobs/wrangler.json apps/jobs/worker-configuration.d.ts && wrangler types -c apps/web/wrangler.json apps/web/worker-configuration.d.ts",
+    "typecheck": "pnpm bindings && pnpm --filter @demo/web typecheck && tsc -p apps/jobs/tsconfig.json --noEmit",
+    "test": "node --test tests/*.test.mjs && tsx --test tests/*.test.ts",
+    "test:integration": "node scripts/integration.mjs",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply DB -c apps/jobs/wrangler.json --local --persist-to .wrangler/shared",
+    "db:migrate:staging": "node scripts/release.mjs staging migrate",
+    "db:migrate:production": "node scripts/release.mjs production migrate",
+    "deploy:staging": "pnpm build:web && node scripts/release.mjs staging deploy",
+    "deploy:production": "pnpm build:web && node scripts/release.mjs production deploy",
+    "config:check": "node scripts/check-config.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261014.1",
+    "drizzle-kit": "^0.31.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "wrangler": "^4.0.0"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "22.23.3",
+      "onFail": "download"
+    }
+  }
+}

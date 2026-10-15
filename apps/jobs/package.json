@@ -1,0 +1,9 @@
+{
+  "name": "@demo/jobs",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@demo/db": "workspace:*",
+    "@demo/contracts": "workspace:*"
+  }
+}

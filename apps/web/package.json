@@ -1,0 +1,23 @@
+{
+  "name": "@demo/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@primeuix/themes": "^2.0.2",
+    "primevue": "^4.5.4",
+    "nuxt": "^4.0.0",
+    "vue": "^3.5.0",
+    "@demo/db": "workspace:*",
+    "@demo/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@primevue/nuxt-module": "^4.5.4",
+    "tailwindcss": "^4.0.0",
+    "vue-tsc": "^3.0.0"
+  }
+}
