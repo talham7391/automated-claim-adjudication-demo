@@ -20,6 +20,60 @@ pnpm test:integration
 
 POST `/api/records` with `{ "id": "<UUID>", "title": "Example" }` creates a pending record and starts a workflow. GET `/api/records/:id` reads it. The workflow reads it, then atomically transitions pending to completed and increments `effectCount`. Repeating that query has no additional effect. Retrying POST with the same ID/title reuses the workflow instance; a different title for the same ID is rejected. If workflow creation fails after insertion, retry the same POST. The SSR home page lists records; use Refresh status after creating one.
 
+## Workers AI inference
+
+Both Workers have an `AI` binding in local, staging, and production configurations.
+The shared `@demo/ai` package provides `runAgentOne(env, input)` and
+`runAgentTwo(env, input)`. Both accept a text prompt, optional system instructions,
+and optional JPEG/PNG images as `Uint8Array` bytes. Images are sent as base64 data
+URLs to the vision model. Responses are returned directly, without streaming or
+business-specific parsing; inference errors propagate to the caller.
+
+Each Worker and environment defines `AGENT_ONE_MODEL` and `AGENT_TWO_MODEL`, both
+initially set to `@cf/meta/llama-4-scout-17b-16e-instruct`. Edit the corresponding
+Wrangler `vars` to change either independently. Replacement models must support
+the same message format and vision when images are supplied.
+
+For a future Nuxt server route, use the existing server-only bindings utility:
+
+```ts
+import { runAgentOne } from '@demo/ai';
+import { bindings } from '../utils/bindings';
+
+export default defineEventHandler(event => runAgentOne(bindings(event), {
+    prompt: 'Explain what information appears on a prescription receipt.',
+    systemInstructions: 'Answer concisely.'
+}));
+```
+
+For a future Workflow step, obtain image bytes from your document source before
+calling the helper inside `step.do`:
+
+```ts
+import { runAgentTwo } from '@demo/ai';
+
+// Inside a Workflow's run method, with imageBytes loaded by your application:
+const result = await step.do('analyze image', () => runAgentTwo(this.env, {
+    prompt: 'Describe the visible text and details in this image.',
+    images: [{ bytes: imageBytes, mimeType: 'image/jpeg' }]
+}));
+```
+
+These examples are not installed routes or changes to the existing record
+Workflow. The helpers are server-only scaffolding; uploads, image storage, PDF
+processing, and business prompts are left for later.
+
+Workers AI inference runs remotely even during local development. Authenticate
+with `pnpm exec wrangler login` or the account/token environment variables described
+below before running `pnpm dev`. Inference consumes Cloudflare account usage;
+the helpers are not called automatically. See [local binding behavior](https://developers.cloudflare.com/workers/local-development/)
+and [the default vision model](https://developers.cloudflare.com/workers-ai/models/llama-4-scout-17b-16e-instruct/).
+
+For manual live verification, invoke each helper with text only, a JPEG, and a PNG
+and confirm a non-streaming model response. Also confirm provider failures reach
+the caller and changing one model variable leaves the other handler's selection
+unchanged. No new automated tests or runtime validations are included.
+
 ## Environments and deployment
 
 The checked-in IDs are **local placeholders**, not provisioned Cloudflare databases. Local emulation works with these IDs. Remote commands reject placeholders.

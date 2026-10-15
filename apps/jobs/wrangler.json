@@ -38,7 +38,15 @@
           "name": "record-workflow-staging",
           "class_name": "RecordWorkflow"
         }
-      ]
+      ],
+      "ai": {
+        "binding": "AI",
+        "remote": true
+      },
+      "vars": {
+        "AGENT_ONE_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct",
+        "AGENT_TWO_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct"
+      }
     },
     "production": {
       "name": "demo-jobs-production",
@@ -56,7 +64,23 @@
           "name": "record-workflow-production",
           "class_name": "RecordWorkflow"
         }
-      ]
+      ],
+      "ai": {
+        "binding": "AI",
+        "remote": true
+      },
+      "vars": {
+        "AGENT_ONE_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct",
+        "AGENT_TWO_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct"
+      }
     }
+  },
+  "ai": {
+    "binding": "AI",
+    "remote": true
+  },
+  "vars": {
+    "AGENT_ONE_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct",
+    "AGENT_TWO_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct"
   }
 }

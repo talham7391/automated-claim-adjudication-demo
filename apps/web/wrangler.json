@@ -40,7 +40,15 @@
           "class_name": "RecordWorkflow",
           "script_name": "demo-jobs-staging"
         }
-      ]
+      ],
+      "ai": {
+        "binding": "AI",
+        "remote": true
+      },
+      "vars": {
+        "AGENT_ONE_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct",
+        "AGENT_TWO_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct"
+      }
     },
     "production": {
       "name": "demo-web-production",
@@ -59,11 +67,27 @@
           "class_name": "RecordWorkflow",
           "script_name": "demo-jobs-production"
         }
-      ]
+      ],
+      "ai": {
+        "binding": "AI",
+        "remote": true
+      },
+      "vars": {
+        "AGENT_ONE_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct",
+        "AGENT_TWO_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct"
+      }
     }
   },
   "assets": {
     "directory": ".output/public",
     "binding": "ASSETS"
+  },
+  "ai": {
+    "binding": "AI",
+    "remote": true
+  },
+  "vars": {
+    "AGENT_ONE_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct",
+    "AGENT_TWO_MODEL": "@cf/meta/llama-4-scout-17b-16e-instruct"
   }
 }

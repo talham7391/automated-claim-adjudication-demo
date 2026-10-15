@@ -12,7 +12,8 @@
     "nuxt": "^4.0.0",
     "vue": "^3.5.0",
     "@demo/db": "workspace:*",
-    "@demo/contracts": "workspace:*"
+    "@demo/contracts": "workspace:*",
+    "@demo/ai": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",

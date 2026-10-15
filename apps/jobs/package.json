@@ -4,6 +4,7 @@
   "type": "module",
   "dependencies": {
     "@demo/db": "workspace:*",
-    "@demo/contracts": "workspace:*"
+    "@demo/contracts": "workspace:*",
+    "@demo/ai": "workspace:*"
   }
 }

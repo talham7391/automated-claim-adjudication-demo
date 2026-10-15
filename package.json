@@ -8,7 +8,7 @@
     "build:web": "pnpm --filter @demo/web build",
     "build": "pnpm build:web && wrangler deploy -c apps/jobs/wrangler.json --dry-run --outdir ../../.output/jobs",
     "bindings": "wrangler types -c apps/jobs/wrangler.json apps/jobs/worker-configuration.d.ts && wrangler types -c apps/web/wrangler.json apps/web/worker-configuration.d.ts",
-    "typecheck": "pnpm bindings && pnpm --filter @demo/web typecheck && tsc -p apps/jobs/tsconfig.json --noEmit",
+    "typecheck": "pnpm bindings && pnpm --filter @demo/web typecheck && tsc -p apps/jobs/tsconfig.json --noEmit && tsc -p packages/ai/tsconfig.json --noEmit",
     "test": "node --test tests/*.test.mjs && tsx --test tests/*.test.ts",
     "test:integration": "node scripts/integration.mjs",
     "db:generate": "drizzle-kit generate",
