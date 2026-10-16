@@ -18,7 +18,7 @@ let disposed = false;
 function schedulePoll() {
     pollTimer = setTimeout(async () => {
         if (disposed) return;
-        if (error.value || jobs.value?.some(job => ['queued', 'preparing', 'running'].includes(job.status))) {
+        if (error.value || jobs.value?.some(job => ['queued', 'preparing', 'ready', 'running'].includes(job.status))) {
             await refresh();
         }
         if (!disposed) schedulePoll();
@@ -49,14 +49,14 @@ onBeforeUnmount(() => {
             <p v-else-if="status === 'pending' && !jobs">Loading executions…</p>
             <p v-else-if="!jobs?.length">No executions yet. Execute your saved workflow to create one.</p>
             <ul v-if="jobs?.length" class="flex flex-col gap-4" :class="{ 'mt-4': error }">
-                <li v-for="job in jobs" :key="job.id" class="rounded-lg border border-slate-200 bg-white p-4">
+                <li v-for="job in jobs" :key="job.uuid" class="rounded-lg border border-slate-200 bg-white p-4">
                     <div class="flex flex-wrap items-start justify-between gap-2">
-                        <NuxtLink :to="`${sessionPath}/executions/${job.id}`" class="font-semibold text-blue-700 underline break-words">{{ job.description }}</NuxtLink>
+                        <NuxtLink :to="`${sessionPath}/executions/${job.uuid}`" class="font-semibold text-blue-700 underline break-words">{{ job.description }}</NuxtLink>
                         <span class="rounded-full bg-slate-100 px-3 py-1 text-sm">{{ job.status }}</span>
                     </div>
                     <p class="mt-2 text-sm text-slate-600"><time :datetime="new Date(job.createdAt).toISOString()">{{ new Date(job.createdAt).toISOString() }}</time></p>
-                    <NuxtLink :to="`${sessionPath}/executions/${job.id}`" class="mt-1 block text-sm text-blue-700 break-all">{{ job.id }}</NuxtLink>
-                    <p v-if="job.status === 'ready'" class="mt-2 text-sm text-slate-600">Preparation completed; step execution is not implemented yet.</p>
+                    <NuxtLink :to="`${sessionPath}/executions/${job.uuid}`" class="mt-1 block text-sm text-blue-700 break-all">{{ job.uuid }}</NuxtLink>
+                    <p v-if="job.status === 'ready'" class="mt-2 text-sm text-slate-600">The workflow is ready to execute.</p>
                     <p v-if="job.error" class="mt-2 text-sm text-red-700 break-words">{{ job.error }}</p>
                 </li>
             </ul>

@@ -180,3 +180,118 @@ export function validateWorkflowSchema(value: unknown): WorkflowValidationResult
         ? { success: true, data: result.data }
         : { success: false, issues: result.error.issues };
 }
+
+export type WorkflowValues = Fields<unknown>;
+
+export interface WorkflowExecution {
+    workflow: Workflow;
+    inputs: WorkflowValues;
+    status: 'queued' | 'preparing' | 'ready' | 'running' | 'completed' | 'failed' | 'needs_review';
+    results: WorkflowValues | null;
+    error: string | null;
+}
+
+export interface WorkflowStepProgress {
+    stepId: string;
+    status: 'pending' | 'running' | 'completed' | 'failed';
+    output: WorkflowValues | null;
+    error: string | null;
+}
+
+export interface WorkflowExecutionStore {
+    findJob(jobId: string): Promise<WorkflowExecution | undefined>;
+    listJobProgress(jobId: string): Promise<WorkflowStepProgress[]>;
+    markJobRunning(jobId: string): Promise<void>;
+    // Atomically change pending to running; return false if another execution owns it.
+    claimStep(jobId: string, stepId: string): Promise<boolean>;
+    completeStep(jobId: string, stepId: string, output: WorkflowValues): Promise<void>;
+    failStep(jobId: string, stepId: string, error: string): Promise<void>;
+    completeJob(jobId: string, results: WorkflowValues): Promise<void>;
+    failJob(jobId: string, error: string): Promise<void>;
+}
+
+export interface WorkflowStepHandlers {
+    // Inputs and returned outputs are keyed by the step's field IDs.
+    // Extraction handlers resolve file inputs from their stored upload metadata.
+    extract(step: Extract<Step, { type: 'extract' }>, inputs: WorkflowValues): Promise<WorkflowValues>;
+    reason(step: Extract<Step, { type: 'reason' }>, inputs: WorkflowValues): Promise<WorkflowValues>;
+}
+
+/** Resume a prepared job and execute its remaining steps in schema order. */
+export async function executeNextWorkflowStep(
+    jobId: string,
+    store: WorkflowExecutionStore,
+    handlers: WorkflowStepHandlers
+) {
+    const job = await store.findJob(jobId);
+    if (!job) throw new Error(`Job not found: ${jobId}`);
+    if (job.status === 'needs_review') return;
+    if (job.status === 'completed') return job.results ?? {};
+    if (job.status === 'failed') throw new Error(job.error ?? `Job failed: ${jobId}`);
+    if (job.status === 'queued' || job.status === 'preparing') return;
+
+    const progress = new Map((await store.listJobProgress(jobId)).map(step => [step.stepId, step]));
+    const values: WorkflowValues = { ...job.inputs };
+    let activeStepId: string | undefined;
+
+    const resolveReferences = (references: Fields<FieldReference>): WorkflowValues => Object.fromEntries(
+        Object.entries(references).map(([id, reference]) => [id, values[reference.referenceId]])
+    );
+
+    try {
+        await store.markJobRunning(jobId);
+
+        for (const step of job.workflow.steps) {
+            const saved = progress.get(step.id);
+            if (saved?.status === 'completed') {
+                Object.assign(values, saved.output);
+                continue;
+            }
+            if (saved?.status === 'failed') {
+                throw new Error(saved.error ?? `Step failed: ${step.id}`);
+            }
+            if (!saved) throw new Error(`Step progress not found: ${step.id}`);
+            if (saved.status === 'running' || !await store.claimStep(jobId, step.id)) return;
+
+            activeStepId = step.id;
+            const inputs = resolveReferences(step.inputs);
+            let output: WorkflowValues;
+
+            switch (step.type) {
+                case 'extract':
+                    output = await handlers.extract(step, inputs);
+                    break;
+                case 'reason':
+                    output = await handlers.reason(step, inputs);
+                    break;
+                case 'api': {
+                    const response: unknown = JSON.parse(step.config.returnValue);
+                    output = Object.fromEntries(Object.entries(step.outputs).map(([id, field]) => {
+                        let value: unknown = response;
+                        for (const attribute of field.source.split('.')) {
+                            value = value !== null && typeof value === 'object' && Object.hasOwn(value, attribute)
+                                ? (value as Record<string, unknown>)[attribute]
+                                : undefined;
+                        }
+                        if (value === undefined) throw new Error(`API output source not found: ${field.source}`);
+                        return [id, value];
+                    }));
+                    break;
+                }
+            }
+
+            await store.completeStep(jobId, step.id, output);
+            activeStepId = undefined;
+            Object.assign(values, output);
+        }
+
+        const results = resolveReferences(job.workflow.outputs);
+        await store.completeJob(jobId, results);
+        return results;
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (activeStepId !== undefined) await store.failStep(jobId, activeStepId, message);
+        await store.failJob(jobId, message);
+        throw error;
+    }
+}

@@ -41,10 +41,6 @@ const detailError = ref('');
 let pollTimer: ReturnType<typeof setTimeout> | undefined;
 let disposed = false;
 
-function statusLabel(status: string) {
-    return status === 'ready' ? 'Ready — step execution is not implemented yet' : status;
-}
-
 async function loadSelectedJob() {
     const id = selectedJobId.value;
     if (!id) return;
@@ -78,9 +74,9 @@ async function submitJob() {
             else scalarInputs[id] = value;
         }
         form.append('inputs', JSON.stringify(scalarInputs));
-        const job = await $fetch<{ id: string }>(jobsUrl, { method: 'POST', body: form, retry: 0 });
+        const job = await $fetch<{ uuid: string }>(jobsUrl, { method: 'POST', body: form, retry: 0 });
         await refreshJobs();
-        await selectJob(job.id);
+        await selectJob(job.uuid);
     } catch (error: any) {
         submissionError.value = error.data?.statusMessage ?? 'Unable to submit job.';
         const jobId = error.data?.data?.jobId;
@@ -94,10 +90,10 @@ async function submitJob() {
 function schedulePoll() {
     pollTimer = setTimeout(async () => {
         if (disposed) return;
-        if (historyError.value || jobs.value?.some(job => ['queued', 'preparing', 'running'].includes(job.status))) {
+        if (historyError.value || jobs.value?.some(job => ['queued', 'preparing', 'ready', 'running'].includes(job.status))) {
             await refreshJobs();
         }
-        if (selectedJobId.value && (!selectedJob.value || ['queued', 'preparing', 'running'].includes(selectedJob.value.status))) {
+        if (selectedJobId.value && (!selectedJob.value || ['queued', 'preparing', 'ready', 'running'].includes(selectedJob.value.status))) {
             await loadSelectedJob();
         }
         if (!disposed) schedulePoll();
@@ -130,13 +126,13 @@ onBeforeUnmount(() => {
                             <option v-for="option in field.enum" :key="option" :value="option">{{ option }}</option>
                         </select>
                         <input v-else-if="field.type === 'boolean'" :id="`input-${id}`" v-model="inputValues[id]" type="checkbox" :aria-describedby="`description-${id}`" />
-                        <input v-else-if="field.type === 'file'" :id="`input-${id}`" type="file" :aria-describedby="`description-${id}`" @change="selectFile(id, $event)" />
+                        <input v-else-if="field.type === 'file'" :id="`input-${id}`" type="file" accept="image/jpeg,image/png" :aria-describedby="`description-${id}`" @change="selectFile(id, $event)" />
                         <input v-else-if="field.type === 'number'" :id="`input-${id}`" v-model.number="inputValues[id]" type="number" step="any" :aria-describedby="`description-${id}`" />
                         <input v-else :id="`input-${id}`" v-model="inputValues[id]" type="text" :aria-describedby="`description-${id}`" />
                     </div>
-                    <p id="execution-status">Submissions save your inputs and prepare a background job. Step execution is not implemented yet.</p>
+                    <p id="execution-status">Submissions save your inputs and execute the workflow in the background. File inputs support JPEG and PNG images.</p>
                     <p v-if="submissionError" role="alert">{{ submissionError }}</p>
-                    <Button type="submit" label="Prepare workflow job" :loading="submitting" :disabled="submitting" aria-describedby="execution-status" />
+                    <Button type="submit" label="Execute workflow" :loading="submitting" :disabled="submitting" aria-describedby="execution-status" />
                 </fieldset>
             </form>
         </section>
@@ -149,10 +145,10 @@ onBeforeUnmount(() => {
             <p v-if="historyError" role="alert">Unable to load job history.</p>
             <p v-else-if="!jobs?.length">No jobs submitted yet.</p>
             <ul v-else class="job-history">
-                <li v-for="job in jobs" :key="job.id">
-                    <button type="button" :aria-pressed="selectedJobId === job.id" @click="selectJob(job.id)">
-                        {{ job.description }} — {{ statusLabel(job.status) }}
-                        <span>{{ new Date(job.createdAt).toISOString() }} · {{ job.id }}</span>
+                <li v-for="job in jobs" :key="job.uuid">
+                    <button type="button" :aria-pressed="selectedJobId === job.uuid" @click="selectJob(job.uuid)">
+                        {{ job.description }} — {{ job.status }}
+                        <span>{{ new Date(job.createdAt).toISOString() }} · {{ job.uuid }}</span>
                     </button>
                 </li>
             </ul>
@@ -161,8 +157,8 @@ onBeforeUnmount(() => {
             <h2 id="job-details-title">Job details</h2>
             <p v-if="detailError" role="alert">{{ detailError }}</p>
             <template v-else-if="selectedJob">
-                <p>{{ selectedJob.id }}</p>
-                <p>{{ statusLabel(selectedJob.status) }}</p>
+                <p>{{ selectedJob.uuid }}</p>
+                <p>{{ selectedJob.status }}</p>
                 <p v-if="selectedJob.error" role="alert">{{ selectedJob.error }}</p>
                 <h3>Saved workflow</h3>
                 <p>{{ selectedJob.workflow.description }}</p>

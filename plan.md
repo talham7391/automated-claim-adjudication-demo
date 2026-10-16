@@ -19,9 +19,9 @@
 
 ## Run details page
 
-- [ ] Show live execution status and progress for each step.
-- [ ] Show extracted receipt data and review findings.
-- [ ] Show the final approval, rejection, or needs-review outcome with an explanation.
+- [x] Show live execution status and progress for each step.
+- [x] Show extracted receipt data and review findings.
+- [x] Show the final approval, rejection, or needs-review outcome with an explanation.
 - [x] Allow historic runs to be opened with their saved results; manual resolution is out of scope.
 
 ## Run history page

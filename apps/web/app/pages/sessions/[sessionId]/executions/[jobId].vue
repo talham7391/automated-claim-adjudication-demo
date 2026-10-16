@@ -29,7 +29,7 @@ let disposed = false;
 function schedulePoll() {
     pollTimer = setTimeout(async () => {
         if (disposed) return;
-        if (error.value || (job.value && ['queued', 'preparing', 'running'].includes(job.value.status))) {
+        if (error.value || (job.value && ['queued', 'preparing', 'ready', 'running'].includes(job.value.status))) {
             await refresh();
         }
         if (!disposed) schedulePoll();
@@ -56,7 +56,7 @@ onBeforeUnmount(() => {
         <template v-if="job">
             <section class="execution-panel" aria-labelledby="execution-status-title" aria-live="polite">
                 <h2 id="execution-status-title">Status: {{ job.status }}</h2>
-                <p v-if="job.status === 'ready'" class="mt-2 text-sm text-slate-600">Preparation completed; step execution is not implemented yet.</p>
+                <p v-if="job.status === 'ready'" class="mt-2 text-sm text-slate-600">The workflow is ready to execute.</p>
                 <p v-if="job.error" class="mt-2 text-red-700" role="alert">{{ job.error }}</p>
                 <dl class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div v-for="timestamp in timestamps" :key="timestamp.label">

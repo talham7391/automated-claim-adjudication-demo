@@ -31,14 +31,14 @@ export default defineEventHandler(async event => {
                 size: file.data.length
             };
         }
-        job = await insertJob(db, { id: jobId, sessionUuid, workflow: session.workflow, inputs });
+        job = await insertJob(db, { uuid: jobId, sessionId: String(session.id), workflow: session.workflow, inputs });
     } catch (error) {
         await Promise.allSettled(uploadedKeys.map(key => env.JOB_UPLOADS.delete(key)));
         throw error;
     }
 
     try {
-        await env.SESSION_WORKFLOW.create({ id: jobId, params: { jobId } });
+        await env.SESSION_WORKFLOW.create({ id: job.uuid, params: { jobId: job.uuid } });
     } catch (error) {
         // A lost create response may still mean the durable instance exists.
         try {

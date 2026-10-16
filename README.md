@@ -16,7 +16,7 @@ pnpm dev
 
 `pnpm dev` builds Nuxt, applies migrations, then starts both Workers in one Wrangler process. Open http://localhost:8787. Both Workers and the migration command use the root `.wrangler/shared` persistence directory. This is a production-build local preview; rebuild/restart after edits. Do not run independent Wrangler processes with different persistence directories.
 
-Create a session from the home page, describe its workflow, then open Execute workflow to submit inputs and prepare a job. `SessionWorkflow` initializes step progress and marks the job ready; execution of individual steps is not implemented yet.
+Create a session from the home page, describe its workflow, then open Execute workflow to submit inputs and execute a job. `SessionWorkflow` initializes step progress, executes steps in order, and saves results or failure details.
 
 ## Workers AI inference
 
@@ -57,14 +57,18 @@ const result = await step.do('analyze image', () => runAgentTwo(this.env, {
 }));
 ```
 
-These examples illustrate server-only AI helpers. Session jobs already support
-file uploads and storage; document processing and individual workflow step
-execution are not implemented yet.
+These examples illustrate server-only AI helpers. Session jobs use `runAgentTwo`
+for extraction and reasoning. Referenced JPEG/PNG uploads are loaded privately
+from R2 and attached to inference; other file types fail with an execution error.
+AI steps request JSON outputs keyed by the declared output IDs. API steps parse
+the configured mock `returnValue` and resolve dot-separated output source paths;
+they do not send network requests.
 
 Workers AI inference runs remotely even during local development. Authenticate
 with `pnpm exec wrangler login` or the account/token environment variables described
 below before running `pnpm dev`. Inference consumes Cloudflare account usage;
-the helpers are not called automatically. See [local binding behavior](https://developers.cloudflare.com/workers/local-development/)
+submitted workflows call the helpers automatically for extraction and reasoning.
+See [local binding behavior](https://developers.cloudflare.com/workers/local-development/)
 and [the default vision model](https://developers.cloudflare.com/workers-ai/models/llama-4-scout-17b-16e-instruct/).
 
 For manual live verification, invoke each helper with text only, a JPEG, and a PNG
@@ -81,7 +85,7 @@ Local and staging use placeholder database IDs; production has a configured ID. 
 3. Set each real ID in **both** `apps/web/wrangler.json` and `apps/jobs/wrangler.json` under the corresponding environment. Staging and production must use distinct IDs.
 4. Run `pnpm config:check`, `pnpm typecheck`, `pnpm test`, and `pnpm build`.
 5. Run `pnpm deploy:staging`. This builds web, checks bindings, applies migrations once, deploys jobs, then deploys web. Production uses `pnpm deploy:production` with the same ordering.
-6. Open the deployed web Worker, create a session workflow, and submit a job. Confirm it reaches `ready` and displays pending step progress.
+6. Open the deployed web Worker, create a session workflow, and submit a job. Confirm it reaches `completed`, displays step outputs and final results, and shows errors for failed executions.
 
 Standalone migration commands are `pnpm db:migrate:local`, `pnpm db:migrate:staging`, and `pnpm db:migrate:production`. Use backward-compatible schema changes so the previously deployed web Worker continues to work while jobs deploys.
 
@@ -109,10 +113,12 @@ existing jobs. GET `/api/sessions/:uuid/jobs` lists newest jobs first; GET
 `/api/sessions/:uuid/jobs/:jobId` returns the snapshot, inputs, and step progress.
 Both endpoints are scoped to the session UUID.
 
-`SessionWorkflow` prepares each job using durable steps and initializes pending
-progress rows. A prepared job is `ready`; extract, reason, and API execution are
-not implemented yet. The execution page shows history, saved details, and polls
-active jobs every two seconds. A dispatch failure preserves the failed job and
+`SessionWorkflow` initializes pending progress rows, then executes each step in a
+separate durable operation. Jobs move from `queued` through `preparing` and
+`running` to `completed` or `failed`. Completed step outputs are reused on resume;
+inference failures are terminal, with no automatic inference retries. Final
+results resolve the saved workflow output references. The execution page shows
+history, saved details, and polls active jobs every two seconds. A dispatch failure preserves the failed job and
 uploads and returns its ID in the error's `data.jobId` field. Submitting again
 creates another job.
 
@@ -120,6 +126,12 @@ Local R2 uses the existing shared Wrangler persistence directory. Before remote
 deployment, create `demo-job-uploads-staging` and
 `demo-job-uploads-production` with `pnpm exec wrangler r2 bucket create <name>`.
 Both Workers must use the same bucket within each environment. If you choose
-other bucket names, update both Wrangler configurations. Apply the new D1
-migration before deploying jobs and then web using the existing release flow.
+other bucket names, update both Wrangler configurations. Apply D1
+migrations before deploying jobs and then web using the existing release flow.
+Migration `0005_job_execution.sql` preserves historical public job UUIDs and
+execution data while translating internal job and session references to row IDs.
+Pause submissions and let existing workflow instances finish before migrating.
+Keep submissions paused until both updated workers are deployed: the historical
+table layout is incompatible with this migration. Existing prepared jobs retain
+their progress; they are not automatically dispatched again.
 No file download or retry endpoint is included.

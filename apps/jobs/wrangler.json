@@ -2,6 +2,13 @@
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "demo-jobs",
   "main": "src/index.ts",
+  "rules": [
+    {
+      "type": "Text",
+      "globs": ["**/*.md"],
+      "fallthrough": true
+    }
+  ],
   "compatibility_date": "2026-10-01",
   "compatibility_flags": [
     "nodejs_compat"
