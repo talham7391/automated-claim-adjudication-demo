@@ -44,6 +44,6 @@
 - [ ] Learn the files in greater detail
 - [ ] Security review
 - [ ] Favicon/manifest
-- [ ] Production deploy
-- [ ] Pretty README.md file (with a future sections)
+- [x] Production deploy
+- [x] Pretty README.md file (with a future sections)
 - [ ] Audit the DB schema

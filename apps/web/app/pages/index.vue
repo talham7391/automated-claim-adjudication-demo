@@ -83,11 +83,17 @@ async function startSession() {
                     <div class="section-heading">
                         <h2 id="demo-heading">See it in action</h2>
                     </div>
-                    <div class="video-placeholder">
-                        <span class="play-icon" aria-hidden="true">▶</span>
-                        <h3>Demo video</h3>
-                        <p>A walkthrough of the claim adjudication workflow will appear here.</p>
-                    </div>
+                    <iframe
+                        class="demo-video"
+                        width="560"
+                        height="315"
+                        src="https://www.youtube.com/embed/n4MSGxmc0RM?si=HkUO2I-Q4oyK4Sa-"
+                        title="YouTube video player"
+                        frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        allowfullscreen
+                    ></iframe>
                     <p class="video-caption">From creating a session to reviewing execution results.</p>
                 </section>
             </div>
@@ -300,43 +306,13 @@ h2 {
     font-size: 12px;
 }
 
-.video-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+.demo-video {
+    display: block;
+    width: 100%;
+    height: auto;
     aspect-ratio: 16 / 9;
-    padding: 24px;
-    border: 1px solid #dbe5e9;
+    border: 0;
     border-radius: 16px;
-    background: radial-gradient(ellipse at top right, #dff5ef, transparent 65%), #f1f5f9;
-    text-align: center;
-}
-
-.play-icon {
-    display: grid;
-    place-items: center;
-    width: 52px;
-    height: 52px;
-    padding-left: 3px;
-    border: 1px solid #cbd5e1;
-    border-radius: 50%;
-    background: #fff;
-    color: #0f766e;
-}
-
-.video-placeholder h3 {
-    margin: 16px 0 8px;
-    font-size: 16px;
-    font-weight: 600;
-}
-
-.video-placeholder p {
-    max-width: 280px;
-    margin: 0;
-    color: #64748b;
-    font-size: 13px;
-    line-height: 1.6;
 }
 
 .video-caption {

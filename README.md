@@ -1,137 +1,90 @@
-# Nuxt + Cloudflare Workflows + shared D1
+# Automated Claim Adjudication Demo
 
-A TypeScript pnpm workspace with Nuxt SSR and Nitro APIs in `apps/web`, durable Workflows in `apps/jobs`, Drizzle schema/queries/migrations in `packages/db`, and Zod contracts in `packages/contracts`.
+Welcome to my AI-powered application.
 
-## Local use
+[https://demo-web-production.talham7391.workers.dev](https://demo-web-production.talham7391.workers.dev)
 
-Requires Node 22.13+ and pnpm 10.
+* ✅ LLM (Using Llama 4)
+* ✅ Workflow / coordination (You author a multi-step workflow where the output of one LLM feeds into the input of the next LLM)
+* ✅ User input via chat (You describe the workflow you'd like and the system generates it for you)
+* ✅ Memory or state (Workflow outputs are saved and fed as inputs into the LLM)
 
-```sh
-pnpm install
-pnpm config:check
-pnpm typecheck
-pnpm test
-pnpm dev
+Note - This project was developed in a limited 48-hour window.
+
+[Watch a demo on YouTube](https://youtu.be/n4MSGxmc0RM)
+
+### Motiviation / Problem
+
+I worked in the group benefits space for the past 5 years, where our primary product was an HSA (health spending account). We had hundreds of thousands of incoming claims and a dedicated claims team that was responsible for adjudication.
+
+Claim ajduication is a complicated multi-step workflow, and here are examples of the types of decisions that need to be made:
+- Does the member have enough funds under their current plan design to pay for the claim?
+- Is the claim within the current benefit period for the member?
+- Is the claim fabriacated? (i.e. is the member attempting to commit fraud)
+- etc...
+
+It was a bottleneck for our business, but this process can be automated using AI.
+
+### Solution
+
+I've built an app that allows people to craft automated workflows with configurable steps. Each step may have outputs that feed as inputs into the next step.
+
+You type your desired adjudication workflow, with the following building blocks available to you:
+- Extract information out of an image
+- Ask AI to reason or make a judgement given the inputs
+- Make an API call to bring in data from an external system (just a mock for now)
+
+## Disclaimer
+
+### Don't use sensitive information
+
+Use synthetic receipts and fictional policy information only. This demo has no user authentication or access controls tied to a verified identity. Anyone with a session URL can access that session's saved workflow and execution data. Treat anything submitted as exposed to anyone who obtains the URL.
+
+Uploaded images and execution data are stored in Cloudflare R2 and D1, and relevant text and images are sent to Workers AI for inference. The application has not undergone a security review and does not include rate limiting or production privacy safeguards. Do not submit personal, medical, financial, or other confidential information.
+
+### Heavy use of AI
+
+This project was vibe-coded with extensive AI assistance within a short development window. The code needs further review and cleanup before any production use.
+
+AI also generates workflows, extracts receipt data, and reasons about claims at runtime. These outputs can be incomplete or incorrect, even when they match the expected data structure. Treat the results as demonstrations, not authoritative coverage or payment decisions.
+
+## Architecture
+
+The application runs on Cloudflare, with separate Workers for the web application and background execution.
+
+```mermaid
+flowchart TD
+    Browser[Browser] --> Web[Nuxt SSR and API Worker]
+    Web -->|Sessions, workflows, and jobs| D1[(D1 database)]
+    Web -->|Receipt uploads| R2[(R2 object storage)]
+    Web -->|Generate or revise workflow| AI[Workers AI]
+    Web -->|Start execution| Jobs[Jobs Worker: Cloudflare Workflows]
+    Jobs -->|Load workflow and save progress and results| D1
+    Jobs -->|Read receipt images| R2
+    Jobs -->|Extract data and reason about claims| AI
+    Browser -->|Poll execution progress through API| Web
 ```
 
-`pnpm dev` builds Nuxt, applies migrations, then starts both Workers in one Wrangler process. Open http://localhost:8787. Both Workers and the migration command use the root `.wrangler/shared` persistence directory. This is a production-build local preview; rebuild/restart after edits. Do not run independent Wrangler processes with different persistence directories.
+- **Web Worker:** Serves the Nuxt application with server-side rendering and API routes for sessions, workflow edits, uploads, and execution history.
+- **Jobs Worker:** Runs saved workflows through Cloudflare Workflows. Each step executes in order, with progress persisted independently of the browser.
+- **D1:** Stores sessions, workflow definitions, execution inputs, step progress, and final results. Each job keeps a snapshot of the workflow it executes.
+- **R2:** Stores uploaded receipt images for background processing.
+- **Workers AI:** Provides inference for workflow authoring, image extraction, and reasoning.
 
-Create a session from the home page, describe its workflow, then open Execute workflow to submit inputs and execute a job. `SessionWorkflow` initializes step progress, executes steps in order, and saves results or failure details.
+### How the agents work
 
-## Workers AI inference
+The two agents are model calls with different responsibilities and instruction files:
 
-Both Workers have an `AI` binding in local, staging, and production configurations.
-The shared `@demo/ai` package provides `runAgentOne(env, input)` and
-`runAgentTwo(env, input)`. Both accept a text prompt, optional system instructions,
-and optional JPEG/PNG images as `Uint8Array` bytes. Images are sent as base64 data
-URLs to the vision model. Responses are returned directly, without streaming or
-business-specific parsing; inference errors propagate to the caller.
+1. **Workflow authoring agent:** Receives the existing workflow and the user's requested changes. The [workflow authoring guide](agents/how_to_understand_workflows.md) instructs it to produce a structured workflow with inputs, ordered steps, and outputs. The server checks the returned schema before saving it.
+2. **Execution agent:** Runs extraction and reasoning steps using the saved workflow's instructions, declared outputs, and inputs from earlier steps. Calls containing images use the [image extraction guide](agents/how_to_extract_data_from_images.md); other calls use the [reasoning guide](agents/how_to_reason.md). The worker checks returned fields and types before persisting them. Invalid AI output stops the job with a `needs_review` status.
 
-Each Worker and environment defines `AGENT_ONE_MODEL` and `AGENT_TWO_MODEL`, both
-initially set to `@cf/meta/llama-4-scout-17b-16e-instruct`. Edit the corresponding
-Wrangler `vars` to change either independently. Replacement models must support
-the same message format and vision when images are supplied.
+Workflow execution is controlled by application code. Steps labeled `api` currently use configured mock JSON responses rather than calling external services. A `needs_review` status can be inspected, but manual resolution is not implemented.
 
-For a future Nuxt server route, use the existing server-only bindings utility:
+## Future Work
 
-```ts
-import { runAgentOne } from '@demo/ai';
-import { bindings } from '../utils/bindings';
+The project was built within a 48-hour window, and time ran out before the following improvements could be completed:
 
-export default defineEventHandler(event => runAgentOne(bindings(event), {
-    prompt: 'Explain what information appears on a prescription receipt.',
-    systemInstructions: 'Answer concisely.'
-}));
-```
-
-For a future Workflow step, obtain image bytes from your document source before
-calling the helper inside `step.do`:
-
-```ts
-import { runAgentTwo } from '@demo/ai';
-
-// Inside a Workflow's run method, with imageBytes loaded by your application:
-const result = await step.do('analyze image', () => runAgentTwo(this.env, {
-    prompt: 'Describe the visible text and details in this image.',
-    images: [{ bytes: imageBytes, mimeType: 'image/jpeg' }]
-}));
-```
-
-These examples illustrate server-only AI helpers. Session jobs use `runAgentTwo`
-for extraction and reasoning. Referenced JPEG/PNG uploads are loaded privately
-from R2 and attached to inference; other file types fail with an execution error.
-AI steps request JSON outputs keyed by the declared output IDs. API steps parse
-the configured mock `returnValue` and resolve dot-separated output source paths;
-they do not send network requests.
-
-Workers AI inference runs remotely even during local development. Authenticate
-with `pnpm exec wrangler login` or the account/token environment variables described
-below before running `pnpm dev`. Inference consumes Cloudflare account usage;
-submitted workflows call the helpers automatically for extraction and reasoning.
-See [local binding behavior](https://developers.cloudflare.com/workers/local-development/)
-and [the default vision model](https://developers.cloudflare.com/workers-ai/models/llama-4-scout-17b-16e-instruct/).
-
-For manual live verification, invoke each helper with text only, a JPEG, and a PNG
-and confirm a non-streaming model response. Also confirm provider failures reach
-the caller and changing one model variable leaves the other handler's selection
-unchanged. No new automated tests or runtime validations are included.
-
-## Environments and deployment
-
-Local and staging use placeholder database IDs; production has a configured ID. Remote commands reject placeholder IDs.
-
-1. Authenticate using `pnpm exec wrangler login` (or supply `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`).
-2. Provision any missing databases with `pnpm exec wrangler d1 create <name>`; reuse existing databases where configured.
-3. Set each real ID in **both** `apps/web/wrangler.json` and `apps/jobs/wrangler.json` under the corresponding environment. Staging and production must use distinct IDs.
-4. Run `pnpm config:check`, `pnpm typecheck`, `pnpm test`, and `pnpm build`.
-5. Run `pnpm deploy:staging`. This builds web, checks bindings, applies migrations once, deploys jobs, then deploys web. Production uses `pnpm deploy:production` with the same ordering.
-6. Open the deployed web Worker, create a session workflow, and submit a job. Confirm it reaches `completed`, displays step outputs and final results, and shows errors for failed executions.
-
-Standalone migration commands are `pnpm db:migrate:local`, `pnpm db:migrate:staging`, and `pnpm db:migrate:production`. Use backward-compatible schema changes so the previously deployed web Worker continues to work while jobs deploys.
-
-`pnpm bindings` generates each Worker's binding types from Wrangler configuration; type checking consumes those types. `pnpm db:generate` generates future SQL migrations from the Drizzle schema. The initial SQL migration and its snapshot baseline are checked in. Review generated SQL before applying it. The record cleanup migration drops the obsolete `records` table and deletes its data; historical migrations are retained.
-
-## Verification status
-
-Run `pnpm config:check`, `pnpm typecheck`, `pnpm test`, and `pnpm build` for local verification. The existing automated tests cover configuration consistency and workflow schemas. Live session job preparation requires both Workers, D1, and R2; remote verification requires an authenticated account and provisioned resources.
-
-This demo has no authentication. Avoid storing private data in a public deployment.
-
-References: [multi-Worker local development](https://developers.cloudflare.com/workers/local-development/multi-workers/), [Workflow bindings](https://developers.cloudflare.com/workflows/build/workers-api/), [Nitro Cloudflare preset](https://nitro.build/deploy/providers/cloudflare).
-
-## Session jobs
-
-The execution page submits multipart POST `/api/sessions/:uuid/jobs`. The server
-creates the job UUID. Send an `inputs` part containing JSON scalar values keyed
-by workflow input ID, plus file parts named after their workflow input IDs.
-Each POST creates a new job; requests are not automatically retried.
-
-Jobs preserve the workflow snapshot and input values from submission time.
-Files are stored privately in R2; job inputs contain their object keys, original
-filenames, content types, and sizes. Editing a session workflow does not update
-existing jobs. GET `/api/sessions/:uuid/jobs` lists newest jobs first; GET
-`/api/sessions/:uuid/jobs/:jobId` returns the snapshot, inputs, and step progress.
-Both endpoints are scoped to the session UUID.
-
-`SessionWorkflow` initializes pending progress rows, then executes each step in a
-separate durable operation. Jobs move from `queued` through `preparing` and
-`running` to `completed` or `failed`. Completed step outputs are reused on resume;
-inference failures are terminal, with no automatic inference retries. Final
-results resolve the saved workflow output references. The execution page shows
-history, saved details, and polls active jobs every two seconds. A dispatch failure preserves the failed job and
-uploads and returns its ID in the error's `data.jobId` field. Submitting again
-creates another job.
-
-Local R2 uses the existing shared Wrangler persistence directory. Before remote
-deployment, create `demo-job-uploads-staging` and
-`demo-job-uploads-production` with `pnpm exec wrangler r2 bucket create <name>`.
-Both Workers must use the same bucket within each environment. If you choose
-other bucket names, update both Wrangler configurations. Apply D1
-migrations before deploying jobs and then web using the existing release flow.
-Migration `0005_job_execution.sql` preserves historical public job UUIDs and
-execution data while translating internal job and session references to row IDs.
-Pause submissions and let existing workflow instances finish before migrating.
-Keep submissions paused until both updated workers are deployed: the historical
-table layout is incompatible with this migration. Existing prepared jobs retain
-their progress; they are not automatically dispatched again.
-No file download or retry endpoint is included.
+- **Clean up the AI-generated code:** Simplify rough implementations, improve consistency, and review the overall design.
+- **Develop more capable agentic workflows:** Spend more time on planning, tool use, and recovery behavior. The current token budget limits how far this can be explored.
+- **Add security measures:** Introduce authentication, session access controls, rate limiting, and appropriate protections for uploaded data.
+- **Improve AI inference reliability:** Route inference to a second model when the primary model fails, and experiment with different skill and instruction files to improve extraction and reasoning.

@@ -4,7 +4,7 @@ import {
     startJobStep, completeJobStep, failJobStep, completeJob, failJob, reviewJob,
     type Db, type Job, type JobStep
 } from '@demo/db';
-import { runAgentTwo, type InferenceImage } from '@demo/ai';
+import { runAgentOne, type InferenceImage } from '@demo/ai';
 import type { JobFileInput, SessionWorkflowPayload, Workflow } from '@demo/contracts';
 import type { Fields, FieldReference, Step, WorkflowValues } from '@demo/contracts/workflow_schema_module';
 import reasoningInstructions from '../../../agents/how_to_reason.md';
@@ -180,7 +180,7 @@ async function executeAiStep(
         `INPUT_DATA-${inputDataKey}`
     ].join('\n')
 
-    const result: unknown = await runAgentTwo(env, {
+    const result: unknown = await runAgentOne(env, {
         systemInstructions: images.length > 0 ? imageExtractionInstructions : reasoningInstructions,
         prompt,
         images
