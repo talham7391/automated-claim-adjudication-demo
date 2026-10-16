@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { JobDetail } from '@demo/db';
-import Button from 'primevue/button';
 
 definePageMeta({ key: route => route.path });
 
@@ -12,10 +11,6 @@ if (error.value?.statusCode === 404) {
     throw createError({ statusCode: 404, statusMessage: 'Execution not found', fatal: true });
 }
 
-const steps = computed(() => job.value?.workflow.steps.map(step => ({
-    ...step,
-    progress: job.value?.progress.find(progress => progress.stepId === step.id)
-})) ?? []);
 const timestamps = computed(() => job.value ? [
     { label: 'Created', value: job.value.createdAt },
     { label: 'Updated', value: job.value.updatedAt },
@@ -44,60 +39,52 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <BasePage>
-        <NuxtLink :to="`${sessionPath}/executions`" class="text-blue-700 underline">Back to executions</NuxtLink>
-        <h1 class="mt-4 text-2xl font-bold">Execution detail</h1>
-        <p class="mt-2 text-sm text-slate-600 break-all">Execution ID: {{ route.params.jobId }}</p>
-        <div v-if="error" class="execution-panel" role="alert">
+    <BasePage class="detail-page">
+        <header class="detail-hero">
+            <p class="eyebrow">Follow your process</p>
+            <div class="hero-heading">
+                <h1>Execution <span>progress.</span></h1>
+                <NuxtLink :to="`${sessionPath}/execute`" class="primary-button">New execution <span aria-hidden="true">→</span></NuxtLink>
+            </div>
+            <p class="hero-description">Follow each step through your saved workflow. Select a step's details to inspect its configuration, output, or errors.</p>
+            <p class="execution-reference">Execution <span>{{ route.params.jobId }}</span></p>
+        </header>
+        <div v-if="error" class="execution-panel error-state" role="alert">
             <p>Unable to load execution details.</p>
-            <Button class="mt-3" label="Retry" :loading="status === 'pending'" @click="refresh()" />
+            <button type="button" class="secondary-button" :disabled="status === 'pending'" @click="refresh()">{{ status === 'pending' ? 'Retrying…' : 'Retry' }}</button>
         </div>
-        <p v-else-if="!job" class="mt-6">Loading execution details…</p>
+        <p v-else-if="!job" class="execution-panel loading-state" role="status">Loading execution details…</p>
         <template v-if="job">
-            <section class="execution-panel" aria-labelledby="execution-status-title" aria-live="polite">
-                <h2 id="execution-status-title">Status: {{ job.status }}</h2>
-                <p v-if="job.status === 'ready'" class="mt-2 text-sm text-slate-600">The workflow is ready to execute.</p>
-                <p v-if="job.error" class="mt-2 text-red-700" role="alert">{{ job.error }}</p>
-                <dl class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <p v-if="job.error" class="execution-panel error-state" role="alert">{{ job.error }}</p>
+            <WorkflowVisualization :workflow="job.workflow" :status="job.status" :progress="job.progress" />
+            <section class="execution-panel" aria-labelledby="execution-timing-title">
+                <div class="section-heading">
+                    <h2 id="execution-timing-title">Execution timeline</h2>
+                    <p v-if="['queued', 'preparing', 'ready', 'running'].includes(job.status)" class="live-note">Progress updates automatically</p>
+                </div>
+                <dl class="timestamps">
                     <div v-for="timestamp in timestamps" :key="timestamp.label">
-                        <dt class="text-sm text-slate-600">{{ timestamp.label }}</dt>
-                        <dd class="text-sm">
+                        <dt>{{ timestamp.label }}</dt>
+                        <dd>
                             <time v-if="timestamp.value != null" :datetime="new Date(timestamp.value).toISOString()">{{ new Date(timestamp.value).toISOString() }}</time>
                             <span v-else>—</span>
                         </dd>
                     </div>
                 </dl>
             </section>
-            <section class="execution-panel" aria-labelledby="saved-workflow-title">
-                <h2 id="saved-workflow-title">Saved workflow</h2>
-                <p class="mt-2">{{ job.workflow.description }}</p>
-                <h3 class="mt-5 font-semibold">Step progress</h3>
-                <p v-if="!steps.length" class="mt-2 text-sm text-slate-600">This workflow has no steps.</p>
-                <ol v-else class="mt-3 flex flex-col gap-3">
-                    <li v-for="(step, index) in steps" :key="step.id" class="rounded-lg border border-slate-200 bg-white p-4">
-                        <div class="flex flex-wrap justify-between gap-2">
-                            <h4 class="font-semibold">{{ index + 1 }}. {{ step.name }}</h4>
-                            <span class="text-sm text-slate-600">{{ step.progress?.status ?? 'pending' }}</span>
-                        </div>
-                        <p v-if="step.description" class="mt-2 text-sm text-slate-600">{{ step.description }}</p>
-                        <p v-if="step.progress?.error" class="mt-2 text-sm text-red-700">{{ step.progress.error }}</p>
-                        <details v-if="step.progress?.output != null" class="mt-3">
-                            <summary>Step output</summary>
-                            <pre>{{ JSON.stringify(step.progress.output, null, 4) }}</pre>
-                        </details>
-                    </li>
-                </ol>
-            </section>
-            <section v-if="job.results != null" class="execution-panel" aria-labelledby="results-title">
+            <section v-if="job.results != null" class="execution-panel results-panel" aria-labelledby="results-title">
+                <p class="eyebrow">Workflow output</p>
                 <h2 id="results-title">Results</h2>
                 <pre>{{ JSON.stringify(job.results, null, 4) }}</pre>
             </section>
-            <section class="execution-panel" aria-label="Saved execution data">
+            <section class="execution-panel" aria-labelledby="saved-data-title">
+                <h2 id="saved-data-title">Execution data</h2>
+                <p class="section-description">The inputs and workflow saved for this execution.</p>
                 <details>
                     <summary>Submitted inputs</summary>
                     <pre>{{ JSON.stringify(job.inputs, null, 4) }}</pre>
                 </details>
-                <details class="mt-4">
+                <details>
                     <summary>Workflow snapshot</summary>
                     <pre>{{ JSON.stringify(job.workflow, null, 4) }}</pre>
                 </details>
@@ -107,29 +94,205 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.detail-page {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 24px 28px 56px;
+    color: #0f172a;
+}
+
+.detail-hero {
+    padding: 20px 0 8px;
+}
+
+.eyebrow {
+    margin: 0 0 16px;
+    color: #0f766e;
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.hero-heading,
+.section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+h1 {
+    margin: 0;
+    font-size: clamp(36px, 5vw, 60px);
+    font-weight: 650;
+    letter-spacing: -0.045em;
+    line-height: 1.12;
+}
+
+h1 span {
+    color: #0f766e;
+}
+
+.hero-description {
+    max-width: 680px;
+    margin: 20px 0;
+    color: #475569;
+    font-size: 16px;
+    line-height: 1.8;
+}
+
+.execution-reference {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: #64748b;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.primary-button,
+.secondary-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: 46px;
+    padding: 12px 20px;
+    border: 1px solid #0f766e;
+    border-radius: 8px;
+    background: #0f766e;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 650;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.primary-button:hover {
+    background: #115e59;
+}
+
+.secondary-button {
+    margin-top: 12px;
+    background: #fff;
+    color: #0f766e;
+}
+
+.secondary-button:hover:not(:disabled) {
+    background: #f0fdfa;
+}
+
+.secondary-button:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+.detail-page :is(a, button, summary):focus-visible {
+    outline: 2px solid #0f766e;
+    outline-offset: 3px;
+}
+
 .execution-panel {
     margin-top: 24px;
-    padding: 20px;
+    padding: 28px;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     background: #f8fafc;
-    color: #0f172a;
     overflow-wrap: anywhere;
 }
 
-.execution-panel h2 {
-    font-weight: 650;
+h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+}
+
+.live-note,
+.section-description {
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.timestamps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 24px;
+    margin: 24px 0 0;
+}
+
+.timestamps dt {
+    margin-bottom: 8px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.timestamps dd {
+    margin: 0;
+    color: #334155;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.results-panel {
+    border-color: #cce7e0;
+    background: #f0fdfa;
+}
+
+.error-state {
+    border-color: #fecdd3;
+    background: #fff1f2;
+    color: #b91c1c;
+    font-size: 14px;
+}
+
+.loading-state {
+    color: #64748b;
+    font-size: 14px;
+}
+
+details {
+    margin-top: 16px;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
 }
 
 summary {
-    cursor: pointer;
+    color: #0f766e;
+    font-size: 14px;
     font-weight: 600;
+    cursor: pointer;
 }
 
 pre {
-    margin-top: 12px;
+    margin: 16px 0 0;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    font-size: 13px;
+    color: #334155;
+    font-size: 12px;
+    line-height: 1.8;
+}
+
+@media (max-width: 720px) {
+    .detail-page {
+        padding: 16px 20px 40px;
+    }
+
+    .execution-panel {
+        padding: 20px;
+    }
+
+    .timestamps {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .hero-heading > .primary-button {
+        width: 100%;
+    }
 }
 </style>

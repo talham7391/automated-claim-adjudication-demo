@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import Button from 'primevue/button';
-import type { JobDetail, JobSummary } from '@demo/db';
 
 definePageMeta({ key: route => route.path });
 
@@ -32,35 +30,8 @@ function selectFile(id: string, event: Event) {
 }
 
 const jobsUrl = `/api/sessions/${route.params.sessionId}/jobs`;
-const { data: jobs, refresh: refreshJobs, error: historyError } = await useFetch<JobSummary[]>(jobsUrl);
-const selectedJobId = ref<string | null>(null);
-const selectedJob = ref<JobDetail | null>(null);
 const submitting = ref(false);
 const submissionError = ref('');
-const detailError = ref('');
-let pollTimer: ReturnType<typeof setTimeout> | undefined;
-let disposed = false;
-
-async function loadSelectedJob() {
-    const id = selectedJobId.value;
-    if (!id) return;
-    try {
-        const job = await $fetch<JobDetail>(`${jobsUrl}/${id}`);
-        if (!disposed && selectedJobId.value === id) {
-            selectedJob.value = job;
-            detailError.value = '';
-        }
-    } catch {
-        if (!disposed && selectedJobId.value === id) detailError.value = 'Unable to load job details.';
-    }
-}
-
-async function selectJob(id: string) {
-    selectedJobId.value = id;
-    selectedJob.value = null;
-    detailError.value = '';
-    await loadSelectedJob();
-}
 
 async function submitJob() {
     if (submitting.value) return;
@@ -75,46 +46,32 @@ async function submitJob() {
         }
         form.append('inputs', JSON.stringify(scalarInputs));
         const job = await $fetch<{ uuid: string }>(jobsUrl, { method: 'POST', body: form, retry: 0 });
-        await refreshJobs();
-        await selectJob(job.uuid);
+        await navigateTo(`/sessions/${route.params.sessionId}/executions/${job.uuid}`);
     } catch (error: any) {
         submissionError.value = error.data?.statusMessage ?? 'Unable to submit job.';
         const jobId = error.data?.data?.jobId;
-        await refreshJobs();
-        if (jobId) await selectJob(jobId);
+        if (jobId) {
+            await navigateTo(`/sessions/${route.params.sessionId}/executions/${jobId}`);
+        }
     } finally {
         submitting.value = false;
     }
 }
 
-function schedulePoll() {
-    pollTimer = setTimeout(async () => {
-        if (disposed) return;
-        if (historyError.value || jobs.value?.some(job => ['queued', 'preparing', 'ready', 'running'].includes(job.status))) {
-            await refreshJobs();
-        }
-        if (selectedJobId.value && (!selectedJob.value || ['queued', 'preparing', 'ready', 'running'].includes(selectedJob.value.status))) {
-            await loadSelectedJob();
-        }
-        if (!disposed) schedulePoll();
-    }, 2000);
-}
-
-onMounted(schedulePoll);
-onBeforeUnmount(() => {
-    disposed = true;
-    clearTimeout(pollTimer);
-});
 </script>
 
 <template>
-    <BasePage>
-        <h1>Execute workflow</h1>
-        <p>Session UUID: {{ session?.uuid }}</p>
+    <BasePage class="execute-page">
+        <header class="execute-hero">
+            <p class="eyebrow">Put your process to work</p>
+            <h1>Execute your <span>workflow.</span></h1>
+            <p class="hero-description">Provide the inputs for your saved workflow, start an execution, and view progress on the execution detail page.</p>
+            <p class="session-reference">Session <span>{{ session?.uuid }}</span></p>
+        </header>
         <section v-if="workflow" class="execution-panel" aria-labelledby="saved-workflow-title">
             <h2 id="saved-workflow-title">Saved workflow</h2>
             <p>{{ workflow.description }}</p>
-            <form class="workflow-inputs" @submit.prevent="submitJob">
+            <form class="workflow-inputs" :aria-busy="submitting" @submit.prevent="submitJob">
                 <fieldset :disabled="submitting" class="workflow-inputs">
                     <h3>Workflow inputs</h3>
                     <p v-if="!Object.keys(workflow.inputs).length">This workflow has no inputs.</p>
@@ -132,60 +89,188 @@ onBeforeUnmount(() => {
                     </div>
                     <p id="execution-status">Submissions save your inputs and execute the workflow in the background. File inputs support JPEG and PNG images.</p>
                     <p v-if="submissionError" role="alert">{{ submissionError }}</p>
-                    <Button type="submit" label="Execute workflow" :loading="submitting" :disabled="submitting" aria-describedby="execution-status" />
+                    <div class="submit-actions">
+                        <button type="submit" class="primary-button" :disabled="submitting" aria-describedby="execution-status">
+                            {{ submitting ? 'Starting execution…' : 'Execute workflow' }}
+                            <span v-if="!submitting" aria-hidden="true">→</span>
+                        </button>
+                        <p v-if="submitting" role="status">Starting your workflow and opening its progress…</p>
+                    </div>
                 </fieldset>
             </form>
         </section>
-        <p v-else class="mt-6">
-            No workflow saved yet.
-            <NuxtLink :to="`/sessions/${route.params.sessionId}`">Edit workflow</NuxtLink> to generate one.
-        </p>
-        <section class="execution-panel" aria-labelledby="job-history-title">
-            <h2 id="job-history-title">Job history</h2>
-            <p v-if="historyError" role="alert">Unable to load job history.</p>
-            <p v-else-if="!jobs?.length">No jobs submitted yet.</p>
-            <ul v-else class="job-history">
-                <li v-for="job in jobs" :key="job.uuid">
-                    <button type="button" :aria-pressed="selectedJobId === job.uuid" @click="selectJob(job.uuid)">
-                        {{ job.description }} — {{ job.status }}
-                        <span>{{ new Date(job.createdAt).toISOString() }} · {{ job.uuid }}</span>
-                    </button>
-                </li>
-            </ul>
-        </section>
-        <section v-if="selectedJobId" class="execution-panel" aria-labelledby="job-details-title" aria-live="polite">
-            <h2 id="job-details-title">Job details</h2>
-            <p v-if="detailError" role="alert">{{ detailError }}</p>
-            <template v-else-if="selectedJob">
-                <p>{{ selectedJob.uuid }}</p>
-                <p>{{ selectedJob.status }}</p>
-                <p v-if="selectedJob.error" role="alert">{{ selectedJob.error }}</p>
-                <h3>Saved workflow</h3>
-                <p>{{ selectedJob.workflow.description }}</p>
-                <ol class="job-history">
-                    <li v-for="step in selectedJob.workflow.steps" :key="step.id">
-                        <strong>{{ step.name }}</strong> — {{ selectedJob.progress.find(progress => progress.stepId === step.id)?.status ?? 'pending' }}
-                        <p>{{ step.description }}</p>
-                        <p v-if="selectedJob.progress.find(progress => progress.stepId === step.id)?.error" role="alert">
-                            {{ selectedJob.progress.find(progress => progress.stepId === step.id)?.error }}
-                        </p>
-                    </li>
-                </ol>
-                <details>
-                    <summary>Submitted inputs and workflow snapshot</summary>
-                    <pre>{{ JSON.stringify({ inputs: selectedJob.inputs, workflow: selectedJob.workflow }, null, 4) }}</pre>
-                </details>
-            </template>
-            <p v-else>Loading job details…</p>
+        <section v-else class="empty-state">
+            <h2>Create a workflow first</h2>
+            <p>Describe your process to generate the steps you want to execute.</p>
+            <NuxtLink :to="`/sessions/${route.params.sessionId}`" class="primary-button">Describe your workflow <span aria-hidden="true">→</span></NuxtLink>
         </section>
     </BasePage>
 </template>
 
 <style scoped>
-.execution-panel {
-    max-width: 720px;
+.execute-page {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 24px 28px 56px;
+    color: #0f172a;
+}
+
+.execute-hero {
+    padding: 20px 0 8px;
+}
+
+.eyebrow {
+    margin: 0 0 16px;
+    color: #0f766e;
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+h1 {
+    margin: 0;
+    font-size: clamp(36px, 5vw, 60px);
+    font-weight: 650;
+    letter-spacing: -0.045em;
+    line-height: 1.12;
+}
+
+h1 span {
+    color: #0f766e;
+}
+
+.hero-description {
+    max-width: 680px;
+    margin: 20px 0;
+    color: #475569;
+    font-size: 16px;
+    line-height: 1.8;
+}
+
+.session-reference {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: #64748b;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.execution-panel > p:not(.eyebrow),
+.empty-state p {
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+.execution-panel h2,
+.empty-state h2 {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+}
+
+.primary-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: 46px;
+    padding: 12px 20px;
+    border: 1px solid #0f766e;
+    border-radius: 8px;
+    background: #0f766e;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 650;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.primary-button:hover:not(:disabled) {
+    background: #115e59;
+}
+
+.workflow-inputs :disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+.execute-page :is(a, button, input, select, summary):focus-visible {
+    outline: 2px solid #0f766e;
+    outline-offset: 3px;
+}
+
+.submit-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-top: 8px;
+}
+
+.submit-actions p {
+    color: #64748b;
+    font-size: 13px;
+}
+
+.empty-state {
     margin-top: 24px;
-    padding: 20px;
+    padding: 32px 24px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+    background: #f8fafc;
+    text-align: center;
+}
+
+.empty-state p {
+    margin: 12px 0 20px;
+}
+
+
+.workflow-field input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
+    accent-color: #0f766e;
+}
+
+.workflow-field input::file-selector-button {
+    margin-right: 12px;
+    padding: 6px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: #f0fdfa;
+    color: #0f766e;
+    font: inherit;
+    cursor: pointer;
+}
+
+.execution-panel [role='alert'] {
+    color: #b91c1c;
+}
+
+
+
+@media (max-width: 720px) {
+    .execute-page {
+        padding: 16px 20px 40px;
+    }
+
+    .execution-panel {
+        padding: 20px;
+    }
+
+    .submit-actions,
+    .primary-button {
+        width: 100%;
+    }
+}
+
+.execution-panel {
+    min-width: 0;
+    margin-top: 24px;
+    padding: 28px;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     background: #f8fafc;
@@ -226,9 +311,10 @@ onBeforeUnmount(() => {
 .workflow-field select {
     width: 100%;
     min-width: 0;
-    padding: 8px 12px;
+    min-height: 46px;
+    padding: 12px 14px;
     border: 1px solid #cbd5e1;
-    border-radius: 6px;
+    border-radius: 8px;
     background: #fff;
 }
 fieldset.workflow-inputs {
@@ -238,33 +324,10 @@ fieldset.workflow-inputs {
     min-width: 0;
 }
 
-.job-history {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin: 16px 0;
-}
 
-.job-history button {
-    text-align: left;
-    color: #1d4ed8;
-    cursor: pointer;
-}
 
-.job-history button[aria-pressed='true'] {
-    font-weight: 650;
-}
 
-.job-history span {
-    display: block;
-    color: #475569;
-    font-size: 12px;
-    overflow-wrap: anywhere;
-}
 
-pre {
-    margin-top: 12px;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-}
+
+
 </style>

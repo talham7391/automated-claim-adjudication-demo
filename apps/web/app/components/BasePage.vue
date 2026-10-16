@@ -17,6 +17,7 @@ useHead({
 <template>
     <main class="base-page">
         <nav v-if="sessionPath" class="session-navigation" aria-label="Session workflow">
+            <NuxtLink to="/" class="all-sessions">← All sessions</NuxtLink>
             <NuxtLink :to="sessionPath" active-class="" exact-active-class="current-page">Edit workflow</NuxtLink>
             <NuxtLink :to="`${sessionPath}/execute`" active-class="" exact-active-class="current-page">Execute workflow</NuxtLink>
             <NuxtLink :to="`${sessionPath}/executions`" active-class="current-page">Executions</NuxtLink>
@@ -32,22 +33,66 @@ useHead({
 
 .session-navigation {
     display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
+    width: fit-content;
+    max-width: 100%;
+    gap: 4px;
     margin-bottom: 24px;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 5px;
+    overflow-x: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #f8fafc;
 }
 
 .session-navigation a {
-    padding: 12px 0;
-    color: #475569;
-    border-bottom: 2px solid transparent;
+    flex-shrink: 0;
+    padding: 11px 18px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color 150ms ease, background 150ms ease, box-shadow 150ms ease;
 }
 
-.session-navigation a:hover,
+.session-navigation a:hover {
+    color: #0f766e;
+    background: #f0fdfa;
+}
+
+.session-navigation .all-sessions {
+    margin-right: 4px;
+    border-right-color: #e2e8f0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
 .session-navigation .current-page {
-    color: #2563eb;
-    border-bottom-color: #2563eb;
+    border-color: #d5e9e5;
+    background: #fff;
+    color: #0f766e;
+    box-shadow: 0 1px 3px #0f172a0a;
+}
+
+.session-navigation a:focus-visible {
+    outline: 2px solid #0f766e;
+    outline-offset: -2px;
+}
+
+@media (max-width: 480px) {
+    .session-navigation a {
+        padding: 10px 12px;
+        font-size: 12px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .session-navigation a {
+        transition: none;
+    }
 }
 
 .base-page :deep(button),

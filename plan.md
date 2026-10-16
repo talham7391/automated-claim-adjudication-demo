@@ -31,16 +31,16 @@
 
 ## Shared backend and infrastructure
 
-- [ ] Persist sessions, policies, workflow schemas, runs, step progress, and results.
-- [ ] Store receipt images for background processing.
-- [ ] Execute saved workflows in background jobs that continue independently of the browser.
-- [ ] Use AI for receipt OCR and extraction of data needed by subsequent steps.
-- [ ] Execute policy review steps, including AI judgment/reasoning where needed.
-- [ ] Persist and expose run progress and results to the pages.
-- [ ] Configure and deploy the web app, background jobs, storage, and AI services using the existing Nuxt and Cloudflare foundation.
+- [x] Persist sessions, policies, workflow schemas, runs, step progress, and results.
+- [x] Store receipt images for background processing.
+- [x] Execute saved workflows in background jobs that continue independently of the browser.
+- [x] Use AI for receipt OCR and extraction of data needed by subsequent steps.
+- [x] Execute policy review steps, including AI judgment/reasoning where needed.
+- [x] Persist and expose run progress and results to the pages.
+- [x] Configure and deploy the web app, background jobs, storage, and AI services using the existing Nuxt and Cloudflare foundation.
 
 ## Polish
-- [ ] UI Polish
+- [x] UI Polish
 - [ ] Learn the files in greater detail
 - [ ] Security review
 - [ ] Favicon/manifest
